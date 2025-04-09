@@ -1,3 +1,3 @@
-module github.com/hikacsuser-go
+module github.com/clockworkchen/hikacsuser-go
 
 go 1.24.2

@@ -320,18 +320,18 @@ func MsgCallback(lCommand int, pAlarmer *sdk.NET_DVR_ALARMER, pAlarmInfo unsafe.
 		fmt.Println("  报警类型: COMM_ALARM_ACS (门禁事件)")
 		if pAlarmInfo != nil && dwBufLen >= uint32(unsafe.Sizeof(sdk.NET_DVR_ACS_ALARM_INFO{})) {
 			acsAlarmInfo := (*sdk.NET_DVR_ACS_ALARM_INFO)(pAlarmInfo)
-			
+
 			// 检查结构体大小是否正确
 			if acsAlarmInfo.DwSize != uint32(unsafe.Sizeof(*acsAlarmInfo)) {
-				fmt.Printf("    警告: 结构体大小不匹配，收到: %d, 预期: %d\n", 
-				            acsAlarmInfo.DwSize, unsafe.Sizeof(*acsAlarmInfo))
+				fmt.Printf("    警告: 结构体大小不匹配，收到: %d, 预期: %d\n",
+					acsAlarmInfo.DwSize, unsafe.Sizeof(*acsAlarmInfo))
 			}
-			
+
 			// 获取报警主类型描述
 			majorDesc := utils.GetAlarmMajorTypeDesc(int(acsAlarmInfo.DwMajor))
 			// 获取报警次类型描述
 			minorDesc := utils.GetAlarmMinorTypeDesc(int(acsAlarmInfo.DwMajor), int(acsAlarmInfo.DwMinor))
-			
+
 			fmt.Printf("    报警主类型: %d (0x%X) - %s\n", acsAlarmInfo.DwMajor, acsAlarmInfo.DwMajor, majorDesc)
 			fmt.Printf("    报警次类型: %d (0x%X) - %s\n", acsAlarmInfo.DwMinor, acsAlarmInfo.DwMinor, minorDesc)
 
@@ -342,11 +342,13 @@ func MsgCallback(lCommand int, pAlarmer *sdk.NET_DVR_ALARMER, pAlarmInfo unsafe.
 
 			// 打印事件详情
 			eventInfo := acsAlarmInfo.StruAcsEventInfo
+			fmt.Printf("原始卡号字节str数据: %v\n", string(eventInfo.ByCardNo[:]))
+			fmt.Printf("原始卡号字节数组数据: %v\n", eventInfo.ByCardNo)
 			cardNoBytes := bytes.Trim(eventInfo.ByCardNo[:], "\x00")
-			fmt.Printf("原始卡号字节数据: %v\n", cardNoBytes)
+			fmt.Printf("原始卡号字节数据剪切过: %v\n", cardNoBytes)
 			fmt.Printf("原始卡号(十六进制): %X\n", cardNoBytes)
 			cardNo := string(cardNoBytes)
-			fmt.Printf("原始卡号(字符串): %s\n", cardNo)
+			fmt.Printf("原始卡号(剪切后字符串): %s\n", cardNo)
 			if len(cardNo) > 0 {
 				fmt.Printf("    卡号: %s\n", cardNo)
 			}
@@ -367,14 +369,14 @@ func MsgCallback(lCommand int, pAlarmer *sdk.NET_DVR_ALARMER, pAlarmInfo unsafe.
 			// 如果有图片信息，可以保存或处理
 			if acsAlarmInfo.DwPicDataLen > 0 && acsAlarmInfo.PPicData != nil {
 				fmt.Printf("    包含图片数据，长度: %d，指针地址: %p\n", acsAlarmInfo.DwPicDataLen, acsAlarmInfo.PPicData)
-				
+
 				// 拷贝图片数据
 				// 注意：这里使用了三种方法处理指针，如果一种失败可以尝试另一种
 				var picData []byte
-				
+
 				// 方法1: 使用GoBytes直接复制指针内容到Go slice
 				picData = C.GoBytes(unsafe.Pointer(acsAlarmInfo.PPicData), C.int(acsAlarmInfo.DwPicDataLen))
-				
+
 				// 方法2: 如果方法1失败，尝试分配内存并使用memcpy复制
 				if len(picData) == 0 && acsAlarmInfo.DwPicDataLen > 0 {
 					fmt.Println("    方法1获取图片数据失败，尝试方法2")
@@ -383,27 +385,27 @@ func MsgCallback(lCommand int, pAlarmer *sdk.NET_DVR_ALARMER, pAlarmInfo unsafe.
 					// 使用C.memcpy复制内存
 					C.memcpy(unsafe.Pointer(&picData[0]), unsafe.Pointer(acsAlarmInfo.PPicData), C.size_t(acsAlarmInfo.DwPicDataLen))
 				}
-				
+
 				// 方法3: 如果方法1和方法2都失败，尝试使用unsafe指针操作
 				if len(picData) == 0 && acsAlarmInfo.DwPicDataLen > 0 {
 					fmt.Println("    方法2获取图片数据失败，尝试方法3")
 					picData = make([]byte, acsAlarmInfo.DwPicDataLen)
-					
+
 					// 获取内存起始地址
 					picPtr := unsafe.Pointer(acsAlarmInfo.PPicData)
-					
+
 					// 手动按字节复制
-					picSlice := (*[1<<30]byte)(picPtr)[:acsAlarmInfo.DwPicDataLen:acsAlarmInfo.DwPicDataLen]
+					picSlice := (*[1 << 30]byte)(picPtr)[:acsAlarmInfo.DwPicDataLen:acsAlarmInfo.DwPicDataLen]
 					copy(picData, picSlice)
 				}
-				
+
 				if len(picData) == 0 {
 					fmt.Println("    警告: 无法从指针获取图片数据!")
 				} else {
 					// 创建带时间戳的文件名
 					timestamp := time.Now().UnixNano()
 					picFilename := fmt.Sprintf("alarm_pic_%d.jpg", timestamp)
-					
+
 					// 保存图片数据到文件
 					err := os.WriteFile(picFilename, picData, 0644)
 					if err == nil {
@@ -418,15 +420,15 @@ func MsgCallback(lCommand int, pAlarmer *sdk.NET_DVR_ALARMER, pAlarmInfo unsafe.
 				}
 			} else if acsAlarmInfo.DwPicDataLen > 0 && acsAlarmInfo.PPicData == nil {
 				fmt.Println("    图片数据指针为空，但DwPicDataLen > 0")
-				
+
 				// 处理URL方式(ByPicTransType=1)的图片传输
 				if acsAlarmInfo.ByPicTransType == 1 {
 					fmt.Println("    图片为URL传输方式，尝试获取URL...")
-					
+
 					// 对于URL方式，我们可能需要从其他字段获取URL
 					// 根据SDK文档，通常是从pPicData或其他字段获取URL字符串
 					// 这里我们尝试从不同的地方获取URL
-					
+
 					if acsAlarmInfo.PPicData != nil {
 						urlBytes := C.GoBytes(unsafe.Pointer(acsAlarmInfo.PPicData), C.int(acsAlarmInfo.DwPicDataLen))
 						// 去除可能的空字节
@@ -440,28 +442,28 @@ func MsgCallback(lCommand int, pAlarmer *sdk.NET_DVR_ALARMER, pAlarmInfo unsafe.
 						}
 					}
 				}
-				
+
 				// 特殊处理DwPicDataLen=1的情况
 				if acsAlarmInfo.DwPicDataLen == 1 {
 					fmt.Println("    检测到DwPicDataLen=1，这可能表示需要通过查找图片接口获取图片")
-					
+
 					// 获取报警时间，并计算前后5分钟的时间范围用于搜索图片
 					alarmTime := acsAlarmInfo.StruTime
-					
+
 					// 创建查找图片参数结构
 					var findPicture sdk.NET_DVR_FIND_PICTURE_PARAM
 					findPicture.DwSize = uint32(unsafe.Sizeof(findPicture))
-					
+
 					// 设置通道号 - 一般门禁事件使用1或门编号
 					findPicture.LChannel = 1
-					
+
 					// 设置图片类型 - 门禁事件一般使用0xFF (所有类型)
 					findPicture.ByFileType = 0xFF
-					
+
 					// 设置查找时间范围 (报警时间前后5分钟)
 					startTime := alarmTime
 					endTime := alarmTime
-					
+
 					// 开始时间设为报警时间前5分钟
 					if startTime.DwMinute >= 5 {
 						startTime.DwMinute -= 5
@@ -475,7 +477,7 @@ func MsgCallback(lCommand int, pAlarmer *sdk.NET_DVR_ALARMER, pAlarmInfo unsafe.
 							startTime.DwMinute = 0
 						}
 					}
-					
+
 					// 结束时间设为报警时间后5分钟
 					if endTime.DwMinute <= 55 {
 						endTime.DwMinute += 5
@@ -490,12 +492,11 @@ func MsgCallback(lCommand int, pAlarmer *sdk.NET_DVR_ALARMER, pAlarmInfo unsafe.
 							endTime.DwMinute = 59
 						}
 					}
-					
+
 					// 复制开始和结束时间到查找参数
 					findPicture.StruStartTime = startTime
 					findPicture.StruStopTime = endTime
-					
-					
+
 					// 如果有卡号，设置卡号作为查找条件
 					cardNo := string(bytes.Trim(acsAlarmInfo.StruAcsEventInfo.ByCardNo[:], "\x00"))
 					if len(cardNo) > 0 {
@@ -503,82 +504,82 @@ func MsgCallback(lCommand int, pAlarmer *sdk.NET_DVR_ALARMER, pAlarmInfo unsafe.
 						// 复制卡号到查找参数 (如果SDK支持)
 						// copy(findPicture.SCardNum[:], []byte(cardNo))
 					}
-					
+
 					// 开始查找图片
 					lFindHandle := hcnetsdk.NET_DVR_FindPicture(lUserID, &findPicture)
 					if lFindHandle < 0 {
 						fmt.Printf("    查找图片失败，错误码: %d\n", hcnetsdk.NET_DVR_GetLastError())
 					} else {
 						fmt.Printf("    开始查找图片，句柄: %d\n", lFindHandle)
-						
+
 						// 循环获取查找结果
 						maxAttempts := 20 // 最多尝试20次
 						for i := 0; i < maxAttempts; i++ {
 							var findData sdk.NET_DVR_FIND_PICTURE
 							ret := hcnetsdk.NET_DVR_FindNextPicture(lFindHandle, &findData)
-							
+
 							switch ret {
 							case sdk.NET_DVR_FILE_SUCCESS:
 								// 找到图片
 								fileName := string(bytes.Trim(findData.SFileName[:], "\x00"))
 								fmt.Printf("    找到图片: %s\n", fileName)
-								
+
 								// 准备接收图片数据的参数
 								var getPicParam sdk.NET_DVR_GETPIC_PARAM
 								getPicParam.DwSize = uint32(unsafe.Sizeof(getPicParam))
-								
+
 								// 设置图片保存方式 - 0: 二进制数据
 								getPicParam.ByPictype = 0
-								
+
 								// 创建图片文件名
 								picFilename := fmt.Sprintf("alarm_pic_%d_%d.jpg", time.Now().UnixNano(), i)
-								
+
 								// 将Go字符串转换为C字符串，用于设置文件名
 								cFilename := C.CString(picFilename)
 								defer C.free(unsafe.Pointer(cFilename))
-								
+
 								// 设置保存文件名
 								getPicParam.PicName = (*byte)(unsafe.Pointer(cFilename))
-								
+
 								// 获取图片
 								if hcnetsdk.NET_DVR_GetPicture_V50(lUserID, &findData, &getPicParam) {
 									fmt.Printf("    成功保存图片到: %s\n", picFilename)
 								} else {
 									fmt.Printf("    保存图片失败，错误码: %d\n", hcnetsdk.NET_DVR_GetLastError())
 								}
-								
+
 							case sdk.NET_DVR_ISFINDING:
 								// 正在查找，继续等待
 								fmt.Println("    正在查找图片，请等待...")
 								time.Sleep(200 * time.Millisecond)
 								continue
-								
+
 							case sdk.NET_DVR_FILE_NOFIND:
 								// 未找到更多图片
 								fmt.Println("    未找到更多图片")
 								break
-								
+
 							case sdk.NET_DVR_NOMOREFILE:
 								// 没有更多图片
 								fmt.Println("    没有更多图片")
 								break
-								
+
 							case sdk.NET_DVR_FILE_EXCEPTION:
 								// 查找图片异常
 								fmt.Printf("    查找图片异常，错误码: %d\n", hcnetsdk.NET_DVR_GetLastError())
 								break
-								
+
 							default:
 								fmt.Printf("    查找图片返回未知状态: %d\n", ret)
 								break
 							}
-							
+
 							// 如果不是正在查找状态，跳出循环
 							if ret != sdk.NET_DVR_ISFINDING {
 								break
 							}
 						}
-						
+
 						// 关闭查找句柄
 						if !hcnetsdk.NET_DVR_CloseFindPicture(lFindHandle) {
 							fmt.Printf("    关闭查找图片句柄失败，错误码: %d\n", hcnetsdk.NET_DVR_GetLastError())
@@ -635,7 +636,7 @@ func handleAlarmSetup(lUserID int) {
 	// 2. 设置布防参数
 	var setupParam sdk.NET_DVR_SETUPALARM_PARAM
 	setupParam.DwSize = uint32(unsafe.Sizeof(setupParam))
-	setupParam.ByLevel = 1          // 布防优先级：中
+	setupParam.ByLevel = 1         // 布防优先级：中
 	setupParam.ByAlarmInfoType = 1 // 上传报警信息类型：V30结构
 	// 根据需要设置其他布防参数...
 
