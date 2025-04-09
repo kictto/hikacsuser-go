@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="GB2312"?>
+<SdkLocal>
+	<SdkLog>
+        <logLevel>2</logLevel><!--req, 1-ERROR, 2-DEBUG, 3-INFO-->
+        <logDirectory>./sdklog/</logDirectory><!--the end of the string must be '/'-->
+        <autoDelete>true</autoDelete><!--true: There are less than 10 files in the directory, it will be auto deleted by sdk when the files are more than 10; false: No upper limit to the number of log files-->
+    </SdkLog>
+	<!-- 禁用端口映射 -->
+	<Net>
+		<TransUse>false</TransUse>
+	</Net>
+</SdkLocal>

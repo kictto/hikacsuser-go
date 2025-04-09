@@ -1,0 +1,37 @@
+[2025-04-04 15:16:37.237][DBG] CCoreGlobalCtrlBase::LoadDSo, HPR_LoadDSo Succ, Path[D:/workspace/hikacsuser-go/bin/zlib1.dll], hHandleRet[1748172800]
+[2025-04-04 15:16:37.237][INF] The COM:HCCoreBase ver is 6.1.4.15, 2020_03_05. Async:1.
+[2025-04-04 15:16:37.237][INF] The COM:Core ver is 6.1.9.48, 2023_04_10. Async:1.
+[2025-04-04 15:16:37.237][INF] This HCNetSDK ver is 6.1.9.48 Ver 2023_04_10.
+[2025-04-04 15:16:37.237][INF] Login dev 192.168.1.5:8000.
+[2025-04-04 15:16:37.237][INF] dwTotalNum[2048]
+[2025-04-04 15:16:37.239][INF] Private connect 192.168.1.5:8000 sock=1152 this=0x4b7d3d64 cmd=0x10000 port=5899
+[2025-04-04 15:16:37.239][INF] LogonDev1 in[192.168.1.5:8000]
+[2025-04-04 15:16:37.240][DBG] CCoreGlobalCtrlBase::LoadDSo, HPR_LoadDSo Succ, Path[D:/workspace/hikacsuser-go/bin/libcrypto-1_1-x64.dll], hHandleRet[-660471808]
+[2025-04-04 15:16:37.240][DBG] Load [libcrypto-1_1-x64.dll] SUCC, Real Path[D:\workspace\hikacsuser-go\bin\libcrypto-1_1-x64.dll]
+[2025-04-04 15:16:37.240][DBG] CCoreGlobalCtrlBase::LoadDSo, HPR_LoadDSo Succ, Path[D:/workspace/hikacsuser-go/bin/libssl-1_1-x64.dll], hHandleRet[196542464]
+[2025-04-04 15:16:37.240][DBG] Load [libssl-1_1-x64.dll] SUCC, Real Path[D:\workspace\hikacsuser-go\bin\libssl-1_1-x64.dll]
+[2025-04-04 15:16:37.241][INF] SSLTRANSAPI::IsAllAPILoaded, SSL_library_init Unload
+[2025-04-04 15:16:37.241][INF] OpenSSL, Not All Function Loaded!
+[2025-04-04 15:16:37.241][INF] SSLTRANSAPI::PrintVersion, OpenSSL version info [OpenSSL 1.1.1l  24 Aug 2021]
+[2025-04-04 15:16:37.241][INF] CSSLTrans::SSLCtxInit, dwSSLVersion[6], m_fnTLSServerMethod
+[2025-04-04 15:16:37.242][ERR] CSSLTrans::SSLTrans_CTX_Load_CA, invalid path[D:/workspace/hikacsuser-go/bin/cert/\]
+[2025-04-04 15:16:43.481][DBG] CComBase::Load, Load szDllPath[D:/workspace/hikacsuser-go/bin/HCNetSDKCom/HCVoiceTalk.dll] SUCC
+[2025-04-04 15:16:43.481][INF] AbilityAnalyze---Init-- start
+[2025-04-04 15:16:43.481][ERR] AbilityAnalyze---open zip package error, package path D:/workspace/hikacsuser-go/bin/LocalXml.zip
+[2025-04-04 15:16:43.481][INF] The COM:VoiceTalk ver is 6.1.9.48, 2023_04_10.
+[2025-04-04 15:16:43.483][DBG] CComBase::Load, Load szDllPath[D:/workspace/hikacsuser-go/bin/HCNetSDKCom/HCGeneralCfgMgr.dll] SUCC
+[2025-04-04 15:16:43.483][INF] The COM:HCGeneralCfgMgr ver is 6.1.9.48, 2023_04_10.
+[2025-04-04 15:16:43.483][DBG] CComBase::Load, Load szDllPath[D:/workspace/hikacsuser-go/bin/HCNetSDKCom/HCPlayBack.dll] SUCC
+[2025-04-04 15:16:43.484][INF] The COM:HCPlayback ver is 6.1.9.48, 2023_04_10.
+[2025-04-04 15:16:43.485][DBG] CComBase::Load, Load szDllPath[D:/workspace/hikacsuser-go/bin/HCNetSDKCom/HCIndustry.dll] SUCC
+[2025-04-04 15:16:43.485][INF] The COM:HCIndustry ver is 6.1.9.48, 2023_04_10.
+[2025-04-04 15:16:43.485][DBG] CComBase::Load, Load szDllPath[D:/workspace/hikacsuser-go/bin/HCNetSDKCom/HCDisplay.dll] SUCC
+[2025-04-04 15:16:43.485][INF] The COM:HCDisplay ver is 6.1.9.48, 2023_04_10.
+[2025-04-04 15:16:43.486][DBG] CComBase::Load, Load szDllPath[D:/workspace/hikacsuser-go/bin/HCNetSDKCom/HCPreview.dll] SUCC
+[2025-04-04 15:16:43.486][INF] The COM:Preview ver is 6.1.9.48, 2023_04_10.
+[2025-04-04 15:16:43.487][DBG] CComBase::Load, Load szDllPath[D:/workspace/hikacsuser-go/bin/HCNetSDKCom/HCAlarm.dll] SUCC
+[2025-04-04 15:16:43.488][INF] The COM:HCAlarm ver is 6.1.9.48, 2023_04_10.
+[2025-04-04 15:16:43.500][INF] Private connect 192.168.1.5:8000 sock=1220 this=0x4b7d3d64 cmd=0x11204d port=5910
+[2025-04-04 15:16:43.719][DBG] set dwCommToDVR[0x11204e] dwDVRReturn[0]  dwoutBufSize[516]
+[2025-04-04 15:16:43.720][INF] Private connect 192.168.1.5:8000 sock=1240 this=0x4b7d3d64 cmd=0x11204e port=5914
+[2025-04-04 15:16:51.592][ERR] dwOutBufferSize[3128]< sdk outbuffersize[3988]
