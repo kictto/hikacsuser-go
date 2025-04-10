@@ -3,7 +3,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/hikacsuser-go/pkg/acsapi"
+	"github.com/clockworkchen/hikacsuser-go/pkg/acsapi"
 	"time"
 )
 

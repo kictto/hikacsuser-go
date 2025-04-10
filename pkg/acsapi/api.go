@@ -4,8 +4,8 @@ package acsapi
 
 import (
 	"fmt"
-	"github.com/hikacsuser-go/internal/models"
-	"github.com/hikacsuser-go/internal/sdk"
+	"github.com/clockworkchen/hikacsuser-go/internal/models"
+	"github.com/clockworkchen/hikacsuser-go/internal/sdk"
 )
 
 // ACSClient 门禁系统客户端

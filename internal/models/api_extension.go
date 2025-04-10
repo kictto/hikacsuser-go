@@ -4,8 +4,8 @@ package models
 import "C"
 import (
 	"fmt"
-	"github.com/hikacsuser-go/internal/sdk"
-	"github.com/hikacsuser-go/internal/utils"
+	"github.com/clockworkchen/hikacsuser-go/internal/sdk"
+	"github.com/clockworkchen/hikacsuser-go/internal/utils"
 	"time"
 	"unsafe"
 )

@@ -10,8 +10,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/hikacsuser-go/internal/sdk"
-	"github.com/hikacsuser-go/internal/utils"
+	"github.com/clockworkchen/hikacsuser-go/internal/sdk"
+	"github.com/clockworkchen/hikacsuser-go/internal/utils"
 	"os"
 	"path/filepath"
 	"time"
@@ -42,11 +42,11 @@ func (fm *FaceManage) AddFaceByBinary(lUserID int, employeeNo string) error {
 	// 尝试多个可能的路径加载图片文件
 	var filePath string
 	var fileExists bool
-	
+
 	// 尝试从resources/pic目录加载
 	filePath = utils.GetResourcePath("pic/1.jpg")
 	fileExists = utils.FileExists(filePath)
-	
+
 	// 如果resources/pic目录下不存在，尝试从bin/resources/pic目录加载
 	if !fileExists {
 		execPath, err := os.Executable()
@@ -56,7 +56,7 @@ func (fm *FaceManage) AddFaceByBinary(lUserID int, employeeNo string) error {
 			fileExists = utils.FileExists(filePath)
 		}
 	}
-	
+
 	// 如果bin/resources/pic目录下不存在，尝试直接从当前目录的pic子目录加载
 	if !fileExists {
 		execPath, err := os.Executable()
@@ -66,7 +66,7 @@ func (fm *FaceManage) AddFaceByBinary(lUserID int, employeeNo string) error {
 			fileExists = utils.FileExists(filePath)
 		}
 	}
-	
+
 	if !fileExists {
 		return fmt.Errorf("人脸图片文件不存在，已尝试多个路径: %s", filePath)
 	}
@@ -76,7 +76,7 @@ func (fm *FaceManage) AddFaceByBinary(lUserID int, employeeNo string) error {
 	if err != nil {
 		return fmt.Errorf("加载人脸图片失败: %v", err)
 	}
-	
+
 	// 检查图片大小
 	fmt.Printf("人脸图片大小: %d 字节\n", len(faceData))
 
@@ -105,33 +105,33 @@ func (fm *FaceManage) AddFaceByBinary(lUserID int, employeeNo string) error {
 	fmt.Printf("下发人脸二进制数据,json data: %s\n", strJsonData)
 	// 定义类似于NET_DVR_JSON_DATA_CFG的结构体
 	type NET_DVR_JSON_DATA_CFG struct {
-		dwSize                uint32
-		lpJsonData            unsafe.Pointer // JSON报文
-		dwJsonDataSize        uint32         // JSON报文大小
-		lpPicData             unsafe.Pointer // 图片内容
-		dwPicDataSize         uint32         // 图片内容大小
-		lpInfraredFacePicBuffer int32        // 红外人脸图片数据缓存
-		dwInfraredFacePicSize unsafe.Pointer // 红外人脸图片数据大小
-		byRes                 [248]byte      // 保留
+		dwSize                  uint32
+		lpJsonData              unsafe.Pointer // JSON报文
+		dwJsonDataSize          uint32         // JSON报文大小
+		lpPicData               unsafe.Pointer // 图片内容
+		dwPicDataSize           uint32         // 图片内容大小
+		lpInfraredFacePicBuffer int32          // 红外人脸图片数据缓存
+		dwInfraredFacePicSize   unsafe.Pointer // 红外人脸图片数据大小
+		byRes                   [248]byte      // 保留
 	}
 
 	// 创建并填充NET_DVR_JSON_DATA_CFG结构体
 	var struAddFaceDataCfg NET_DVR_JSON_DATA_CFG
-	
+
 	// 使用C.malloc分配内存并复制JSON数据
 	jsonDataPtr := C.malloc(C.size_t(len(strJsonData)))
 	defer C.free(jsonDataPtr)
 	C.memcpy(jsonDataPtr, unsafe.Pointer(&[]byte(strJsonData)[0]), C.size_t(len(strJsonData)))
 	struAddFaceDataCfg.lpJsonData = jsonDataPtr
 	struAddFaceDataCfg.dwJsonDataSize = uint32(len(strJsonData))
-	
+
 	// 使用C.malloc分配内存并复制图片数据
 	picDataPtr := C.malloc(C.size_t(len(faceData)))
 	defer C.free(picDataPtr)
 	C.memcpy(picDataPtr, unsafe.Pointer(&faceData[0]), C.size_t(len(faceData)))
 	struAddFaceDataCfg.lpPicData = picDataPtr
 	struAddFaceDataCfg.dwPicDataSize = uint32(len(faceData))
-	
+
 	// 设置结构体大小
 	struAddFaceDataCfg.dwSize = uint32(unsafe.Sizeof(struAddFaceDataCfg))
 
@@ -142,7 +142,7 @@ func (fm *FaceManage) AddFaceByBinary(lUserID int, employeeNo string) error {
 	// 发送数据及接收结果
 	fmt.Printf("请求数据大小: %d 字节\n", struAddFaceDataCfg.dwSize)
 	result := fm.SDK.NET_DVR_SendWithRecvRemoteConfig(lHandle, unsafe.Pointer(&struAddFaceDataCfg), struAddFaceDataCfg.dwSize, unsafe.Pointer(&outputBuf[0]), uint32(len(outputBuf)), &resultLen)
-	
+
 	fmt.Printf("NET_DVR_SendWithRecvRemoteConfig结果: %d, 返回字节数: %d\n", result, resultLen)
 
 	// 处理配置结果
@@ -167,11 +167,11 @@ func (fm *FaceManage) AddFaceByBinary(lUserID int, employeeNo string) error {
 	} else if result == sdk.NET_SDK_CONFIG_STATUS_NEED_WAIT {
 		// 配置等待，等待一段时间后再次尝试获取结果
 		fmt.Println("配置等待，等待获取结果...")
-		time.Sleep(100 * time.Millisecond) 
+		time.Sleep(100 * time.Millisecond)
 
 		// 再次尝试获取结果，但不发送数据
 		emptyData := []byte{}
-		for i := 0; i < 20; i++ { 
+		for i := 0; i < 20; i++ {
 			result = fm.SDK.NET_DVR_SendWithRecvRemoteConfig(lHandle, unsafe.Pointer(&emptyData[0]), 0, unsafe.Pointer(&outputBuf[0]), uint32(len(outputBuf)), &resultLen)
 
 			if result != sdk.NET_SDK_CONFIG_STATUS_NEED_WAIT {
@@ -581,7 +581,7 @@ func (fm *FaceManage) CaptureFaceInfo(lUserID int) error {
 	// 定义采集人脸条件结构体(与Java实现保持一致)
 	type NET_DVR_CAPTURE_FACE_COND struct {
 		dwSize uint32
-		byRes  [128]byte  // 调整为128字节，与Java实现一致
+		byRes  [128]byte // 调整为128字节，与Java实现一致
 	}
 
 	// 初始化采集人脸条件结构体
@@ -621,23 +621,23 @@ func (fm *FaceManage) CaptureFaceInfo(lUserID int) error {
 
 	// 定义采集人脸信息结构体（与Java实现保持一致）
 	type NET_DVR_CAPTURE_FACE_CFG struct {
-		dwSize               uint32
-		dwFaceTemplate1Size  uint32
-		pFaceTemplate1Buffer unsafe.Pointer
-		dwFaceTemplate2Size  uint32
-		pFaceTemplate2Buffer unsafe.Pointer
-		dwFacePicSize        uint32
-		pFacePicBuffer       unsafe.Pointer
-		byFaceQuality1       byte        // 人脸质量，范围1-100
-		byFaceQuality2       byte        // 人脸质量，范围1-100
-		byCaptureProgress    byte        // 采集进度，0-未采集到人脸，100-采集到人脸
-		byFacePicQuality     byte        // 人脸图片中人脸质量
-		dwInfraredFacePicSize uint32     // 红外人脸图片数据大小
-		pInfraredFacePicBuffer unsafe.Pointer // 红外人脸图片数据缓存
-		byInfraredFacePicQuality byte     // 红外人脸图片中人脸质量
-		byRes1               [3]byte     // 保留字节1
-		struFeature          NET_DVR_FACE_FEATURE // 人脸抠图特征信息
-		byRes                [56]byte    // 保留字节，确保与Java实现一致
+		dwSize                   uint32
+		dwFaceTemplate1Size      uint32
+		pFaceTemplate1Buffer     unsafe.Pointer
+		dwFaceTemplate2Size      uint32
+		pFaceTemplate2Buffer     unsafe.Pointer
+		dwFacePicSize            uint32
+		pFacePicBuffer           unsafe.Pointer
+		byFaceQuality1           byte                 // 人脸质量，范围1-100
+		byFaceQuality2           byte                 // 人脸质量，范围1-100
+		byCaptureProgress        byte                 // 采集进度，0-未采集到人脸，100-采集到人脸
+		byFacePicQuality         byte                 // 人脸图片中人脸质量
+		dwInfraredFacePicSize    uint32               // 红外人脸图片数据大小
+		pInfraredFacePicBuffer   unsafe.Pointer       // 红外人脸图片数据缓存
+		byInfraredFacePicQuality byte                 // 红外人脸图片中人脸质量
+		byRes1                   [3]byte              // 保留字节1
+		struFeature              NET_DVR_FACE_FEATURE // 人脸抠图特征信息
+		byRes                    [56]byte             // 保留字节，确保与Java实现一致
 	}
 
 	// 初始化采集人脸信息结构体

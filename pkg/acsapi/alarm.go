@@ -6,8 +6,8 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/hikacsuser-go/internal/models"
-	"github.com/hikacsuser-go/internal/sdk"
+	"github.com/clockworkchen/hikacsuser-go/internal/models"
+	"github.com/clockworkchen/hikacsuser-go/internal/sdk"
 )
 
 // AlarmCallback 布控回调函数类型定义

@@ -5,12 +5,12 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/hikacsuser-go/internal/sdk"
+	"github.com/clockworkchen/hikacsuser-go/internal/sdk"
 )
 
 // AlarmManage 报警布防管理
 type AlarmManage struct {
-	SDK sdk.HCNetSDK
+	SDK         sdk.HCNetSDK
 	AlarmHandle int // 报警布防句柄
 }
 
@@ -31,10 +31,10 @@ func (am *AlarmManage) SetupAlarm(lUserID int) error {
 	// 创建并初始化报警布防参数 - 使用 sdk 包中的类型
 	var struSetupAlarmParam sdk.NET_DVR_SETUPALARM_PARAM
 	struSetupAlarmParam.DwSize = uint32(unsafe.Sizeof(struSetupAlarmParam))
-	struSetupAlarmParam.ByLevel = 1                 // 布防优先级：中
-	struSetupAlarmParam.ByAlarmInfoType = 1         // 使用新报警信息
-	struSetupAlarmParam.ByRetAlarmTypeV40 = 0       // 使用COMM_ALARM_V30
-	struSetupAlarmParam.ByFaceAlarmDetection = 1    // 启用人脸侦测报警
+	struSetupAlarmParam.ByLevel = 1              // 布防优先级：中
+	struSetupAlarmParam.ByAlarmInfoType = 1      // 使用新报警信息
+	struSetupAlarmParam.ByRetAlarmTypeV40 = 0    // 使用COMM_ALARM_V30
+	struSetupAlarmParam.ByFaceAlarmDetection = 1 // 启用人脸侦测报警
 
 	// 启动报警布防 - 直接传递指针，移除 unsafe.Pointer 转换
 	lHandle := am.SDK.NET_DVR_SetupAlarmChan_V41(lUserID, &struSetupAlarmParam)
@@ -85,22 +85,22 @@ func (am *AlarmManage) SearchAlarmEvent(lUserID int) error {
 
 	// 创建查询条件结构体
 	type NET_DVR_ALARM_SEARCH_COND struct {
-		DwSize              uint32
-		StructStartTime     NET_DVR_TIME // 开始时间
-		StructEndTime       NET_DVR_TIME // 结束时间
-		ByAlarmType         byte   // 报警类型，0-全部
-		ByRes               [3]byte // 保留
-		DwMaxResults        uint32 // 最大返回条数
-		ByRes1              [128]byte // 保留
+		DwSize          uint32
+		StructStartTime NET_DVR_TIME // 开始时间
+		StructEndTime   NET_DVR_TIME // 结束时间
+		ByAlarmType     byte         // 报警类型，0-全部
+		ByRes           [3]byte      // 保留
+		DwMaxResults    uint32       // 最大返回条数
+		ByRes1          [128]byte    // 保留
 	}
 
 	// 创建并初始化查询条件
 	var struAlarmSearchCond NET_DVR_ALARM_SEARCH_COND
 	struAlarmSearchCond.DwSize = uint32(unsafe.Sizeof(struAlarmSearchCond))
-	
+
 	// 设置查询所有类型的报警
 	struAlarmSearchCond.ByAlarmType = 0 // 查询所有类型报警
-	
+
 	// 设置开始时间 - 7天前
 	now := time.Now()
 	startTime := now.AddDate(0, 0, -7)
@@ -110,7 +110,7 @@ func (am *AlarmManage) SearchAlarmEvent(lUserID int) error {
 	struAlarmSearchCond.StructStartTime.DwHour = 0
 	struAlarmSearchCond.StructStartTime.DwMinute = 0
 	struAlarmSearchCond.StructStartTime.DwSecond = 0
-	
+
 	// 设置结束时间 - 当前时间
 	struAlarmSearchCond.StructEndTime.DwYear = uint32(now.Year())
 	struAlarmSearchCond.StructEndTime.DwMonth = uint32(now.Month())
@@ -118,7 +118,7 @@ func (am *AlarmManage) SearchAlarmEvent(lUserID int) error {
 	struAlarmSearchCond.StructEndTime.DwHour = uint32(now.Hour())
 	struAlarmSearchCond.StructEndTime.DwMinute = uint32(now.Minute())
 	struAlarmSearchCond.StructEndTime.DwSecond = uint32(now.Second())
-	
+
 	// 设置最大返回条数
 	struAlarmSearchCond.DwMaxResults = 50
 
@@ -132,11 +132,11 @@ func (am *AlarmManage) SearchAlarmEvent(lUserID int) error {
 	// 创建接收报警事件的结构体
 	type NET_DVR_ALARM_EVENT_INFO struct {
 		DwSize         uint32
-		ByAlarmType    byte    // 报警类型
-		ByRes          [3]byte // 保留
-		UnionAlarmInfo [128]byte // 报警信息联合体，不同报警类型对应不同的结构体
+		ByAlarmType    byte         // 报警类型
+		ByRes          [3]byte      // 保留
+		UnionAlarmInfo [128]byte    // 报警信息联合体，不同报警类型对应不同的结构体
 		StructTime     NET_DVR_TIME // 报警时间
-		ByRes1         [64]byte // 保留
+		ByRes1         [64]byte     // 保留
 	}
 
 	// 初始化接收报警事件的结构体
@@ -168,12 +168,12 @@ func (am *AlarmManage) SearchAlarmEvent(lUserID int) error {
 		} else if dwAlarmSearch == sdk.NET_SDK_GET_NEXT_STATUS_SUCCESS {
 			// 获取报警事件成功，处理事件信息
 			fmt.Printf("%d获取报警事件成功, 报警类型：%d\n", i, struAlarmEventInfo.ByAlarmType)
-			
+
 			// 打印报警时间
 			fmt.Printf("报警时间：年：%d 月：%d 日：%d 时：%d 分：%d 秒：%d\n",
 				struAlarmEventInfo.StructTime.DwYear, struAlarmEventInfo.StructTime.DwMonth, struAlarmEventInfo.StructTime.DwDay,
 				struAlarmEventInfo.StructTime.DwHour, struAlarmEventInfo.StructTime.DwMinute, struAlarmEventInfo.StructTime.DwSecond)
-			
+
 			i++
 			continue
 		}

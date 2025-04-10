@@ -2,7 +2,7 @@ package models
 
 import (
 	"fmt"
-	"github.com/hikacsuser-go/internal/sdk"
+	"github.com/clockworkchen/hikacsuser-go/internal/sdk"
 	"time"
 	"unsafe"
 )
