@@ -1,109 +1,105 @@
-# 海康威视门禁系统SDK封装（Go语言版）
+# 海康威视门禁SDK Go封装
 
-该项目是海康威视门禁系统SDK的Go语言封装，可用于实现门禁设备的管理和控制功能。
+本项目是海康威视门禁SDK的Go语言封装，支持Windows和Linux平台。
 
-## 功能特性
+## 项目特点
 
-- 设备登录/登出管理
-- 门禁参数配置和状态查询
-- 远程控门
-- 人员信息管理（添加、查询、删除）
-- 卡片信息管理（添加、查询、删除）
-- 人脸信息管理（添加、查询、删除、采集）
-- 门禁历史事件查询
-- 计划模板配置
-
-## 系统要求
-
-- Windows/Linux操作系统
-- 支持32位和64位架构
-- Go语言环境 (推荐1.16或更高版本)
-- C/C++编译环境 (Windows需要MinGW或MSVC，Linux需要GCC)
+- 支持Windows和Linux平台
+- 不需要在可执行文件目录下复制动态链接库
+- 使用CGO与海康威视SDK原生库交互
 
 ## 目录结构
 
 ```
 hikacsuser-go/
-├── bin/                    # 可执行文件输出目录
-├── cmd/                    # 命令行程序
-│   └── acsdemo/            # 示例程序
-├── internal/               # 内部包
-│   ├── models/             # 业务模型
-│   ├── sdk/                # SDK接口和实现
-│   └── utils/              # 工具函数
-├── lib/                    # 动态库文件
-│   ├── win32/              # Windows 32位库
-│   ├── win64/              # Windows 64位库
-│   ├── linux32/            # Linux 32位库
-│   └── linux64/            # Linux 64位库
-├── resources/              # 资源文件
-│   └── pic/                # 图片资源
-├── build.bat               # Windows编译脚本
-├── build.sh                # Linux编译脚本
-└── README.md               # 项目说明
+├── bin/                # 编译后的可执行文件
+├── cmd/                # 命令行工具
+│   └── acsdemo/        # 示例程序
+├── internal/           # 内部包
+│   ├── models/         # 业务模型
+│   └── sdk/            # SDK封装
+├── lib/                # 动态库文件
+│   ├── win64/          # Windows 64位库
+│   ├── win32/          # Windows 32位库
+│   ├── linux64/        # Linux 64位库
+│   └── linux32/        # Linux 32位库
+└── resources/          # 资源文件
 ```
 
-## 编译和运行
+## 编译说明
 
-### Windows平台
-
-1. 确保已安装Go语言环境
-2. 确保已安装C/C++编译环境（MinGW或MSVC）
-3. 运行编译脚本：
+### Windows
 
 ```bash
-build.bat
+# 编译项目
+./build.bat
+
+# 运行Demo
+cd bin
+./acsdemo.exe
 ```
 
-### Linux平台
-
-1. 确保已安装Go语言环境
-2. 确保已安装GCC编译环境
-3. 运行编译脚本：
+### Linux
 
 ```bash
-chmod +x build.sh
+# 编译项目
 ./build.sh
+
+# 运行Demo
+cd bin
+./acsdemo
 ```
 
-## 使用方法
+## 使用说明
 
-运行程序后，按照菜单提示输入对应的功能编号：
+### 在其他项目中引用该库
 
-```
-请输入您想要执行的demo实例! （退出请输入yes）
-1 - 获取门禁参数示例代码
-2 - 获取门禁状态示例代码
-3 - 远程控门示例代码
-4 - 下发人员示例代码
-5 - 查询人员示例代码
-6 - 删除人员代码
-7 - 下发卡号代码
-8 - 查询卡号代码
-9 - 删除卡号代码
-10 - 二进制方式下发人脸代码
-12 - URL方式下发人脸代码
-13 - 查询人脸代码
-14 - 删除人脸代码
-15 - 采集人脸代码
-16 - 门禁历史事件查询代码
-17 - 设置计划模板代码
+Go中引用方式：
+
+```go
+import "github.com/yourname/hikacsuser-go/internal/sdk"
+
+func main() {
+    sdk, err := sdk.GetSDKInstance()
+    if err != nil {
+        panic(err)
+    }
+    
+    // 使用SDK...
+}
 ```
 
-## 注意事项
+### 确保动态库正确加载
 
-1. 使用前需要将所需的动态库文件放置在正确的位置
-2. 确保设备IP地址、端口、用户名和密码的正确性
-3. 人脸图片需要放在resources/pic目录下
+本项目设计时避免了需要复制动态库到可执行文件目录的情况，有以下几种方法可以确保动态库被正确加载：
 
-## 开发扩展
+#### 方法一：使用提供的帮助脚本
 
-如需扩展更多功能，可以：
+Windows:
+```cmd
+call path\to\hikacsuser-go\run_helper.bat
+```
 
-1. 在models目录下添加新的业务模型
-2. 在sdk/hcnetsdk.go中添加新的接口方法
-3. 在sdk/hcnetsdk_impl.go中实现新添加的接口方法
-4. 在main.go中调用新的功能
+Linux:
+```bash
+source path/to/hikacsuser-go/run_helper.sh
+```
+
+#### 方法二：手动设置环境变量
+
+Windows:
+```cmd
+set PATH=path\to\hikacsuser-go\lib\win64;%PATH%
+```
+
+Linux:
+```bash
+export LD_LIBRARY_PATH=path/to/hikacsuser-go/lib/linux64:$LD_LIBRARY_PATH
+```
+
+#### 方法三：在项目内部设置库路径
+
+在程序启动时，调用SDK中的`setLibraryPath`方法设置库路径。此方法已在SDK内部自动调用，无需手动操作。
 
 ## 许可证
 

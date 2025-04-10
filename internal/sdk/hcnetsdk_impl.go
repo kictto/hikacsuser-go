@@ -2,10 +2,10 @@ package sdk
 
 /*
 #cgo windows CFLAGS: -I./
-#cgo windows LDFLAGS: -L${SRCDIR}/../../bin -lHCNetSDK
+#cgo windows LDFLAGS: -L${SRCDIR}/../../lib/win64 -lHCNetSDK
 
 #cgo linux CFLAGS: -I./
-#cgo linux LDFLAGS: -L./linux64 -lhcnetsdk -ldl
+#cgo linux LDFLAGS: -L${SRCDIR}/../../lib/linux64 -lhcnetsdk -ldl
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -204,13 +204,31 @@ func (sdk *HCNetSDKImpl) initialize() error {
 
 // setLibraryPath 设置SDK库路径
 func (sdk *HCNetSDKImpl) setLibraryPath() error {
+	// 获取可执行文件路径
 	execPath, err := os.Executable()
 	if err != nil {
 		return err
 	}
 
-	rootDir := filepath.Dir(execPath)
-	libPath := filepath.Join(rootDir, "lib")
+	// 优先尝试从可执行文件目录查找lib
+	execDir := filepath.Dir(execPath)
+	libPath := filepath.Join(execDir, "lib")
+
+	// 如果可执行文件目录下没有lib，则尝试从程序所在目录或源码目录查找
+	if _, err := os.Stat(libPath); os.IsNotExist(err) {
+		// 获取当前工作目录
+		workDir, err := os.Getwd()
+		if err == nil {
+			libPath = filepath.Join(workDir, "lib")
+			// 如果工作目录也没有lib，则使用相对于源码的固定路径
+			if _, err := os.Stat(libPath); os.IsNotExist(err) {
+				_, callerFile, _, _ := runtime.Caller(0)
+				// 从源码文件位置确定lib目录
+				sourceDir := filepath.Dir(callerFile)
+				libPath = filepath.Join(sourceDir, "..", "..", "lib")
+			}
+		}
+	}
 
 	// 根据操作系统和架构选择合适的库路径
 	var osDir string
@@ -231,6 +249,9 @@ func (sdk *HCNetSDKImpl) setLibraryPath() error {
 	}
 
 	sdkPath := filepath.Join(libPath, osDir)
+
+	// 打印找到的库路径便于调试
+	fmt.Printf("使用SDK路径: %s\n", sdkPath)
 
 	// Linux系统设置额外的库路径
 	if runtime.GOOS == "linux" {

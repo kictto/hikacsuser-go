@@ -21,7 +21,7 @@ cd ../..
 
 # 编译主程序
 cd cmd/acsdemo
-go build -o ../../bin/acsdemo
+go build -o ../../bin/acsdemo -ldflags "-linkmode external"
 if [ $? -ne 0 ]; then
     echo "主程序编译失败"
     exit 1
@@ -38,7 +38,13 @@ if [ ! -d bin/resources/pic ]; then
 fi
 cp resources/pic/*.jpg bin/resources/pic/
 
+# 可选：创建符号链接到lib目录
+# ln -s ../lib bin/lib
+
 echo "编译完成，程序已保存到bin目录"
+
+# 设置LD_LIBRARY_PATH以便程序能找到动态库
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/lib/linux64
 
 # 询问是否运行程序
 read -p "是否运行程序(y/n)? " run

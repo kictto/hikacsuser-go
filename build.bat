@@ -25,7 +25,7 @@ cd ..\..\bin
 
 REM 编译主程序
 cd cmd\acsdemo
-go build -o ..\..\bin\acsdemo.exe
+go build -o ..\..\bin\acsdemo.exe -ldflags "-linkmode external"
 if %ERRORLEVEL% NEQ 0 (
     echo 主程序编译失败
     exit /b %ERRORLEVEL%
@@ -50,15 +50,19 @@ echo         ^<TransUse^>false^</TransUse^> >> bin\HCNetSDK_Log_Switch.xml
 echo     ^</Net^> >> bin\HCNetSDK_Log_Switch.xml
 echo ^</SdkLocal^> >> bin\HCNetSDK_Log_Switch.xml
 
+REM 创建资源目录
 if not exist bin\resources mkdir bin\resources
 if not exist bin\resources\pic mkdir bin\resources\pic
 xcopy /Y resources\pic\*.jpg bin\resources\pic\
+
+REM 创建符号链接（可选，需要管理员权限）
+REM mklink /D bin\lib ..\lib
 
 echo 编译完成，程序已保存到bin目录
 
 REM 询问是否运行程序
 set /p run=是否运行程序(y/n)?
-if /i "%run%"=="y" (
+if "%run%"=="y" (
     cd bin
-    acsdemo.exe
+    .\acsdemo.exe
 )
