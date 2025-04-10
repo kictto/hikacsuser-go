@@ -1,6 +1,10 @@
 // Package models 提供门禁系统的内部模型实现
 package models
 
+/*
+#include <stdlib.h>
+#include <string.h>
+*/
 import "C"
 import (
 	"fmt"
