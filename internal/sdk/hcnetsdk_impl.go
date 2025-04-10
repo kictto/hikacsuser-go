@@ -230,6 +230,22 @@ func (sdk *HCNetSDKImpl) setLibraryPath() error {
 		}
 	}
 
+	if _, err := os.Stat(libPath); os.IsNotExist(err) {
+		// 添加: 尝试在Go模块缓存中查找
+		for _, gopath := range filepath.SplitList(os.Getenv("GOPATH")) {
+			pattern := filepath.Join(gopath, "pkg", "mod", "github.com", "clockworkchen", "hikacsuser-go@*")
+			matches, _ := filepath.Glob(pattern)
+			if len(matches) > 0 {
+				modLibPath := filepath.Join(matches[0], "lib")
+				// 检查此路径是否存在
+				if _, err := os.Stat(modLibPath); err == nil {
+					libPath = modLibPath
+					break
+				}
+			}
+		}
+	}
+
 	// 根据操作系统和架构选择合适的库路径
 	var osDir string
 	if runtime.GOOS == "windows" {
