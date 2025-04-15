@@ -18,9 +18,9 @@ func (c *ACSClient) AddFaceByBinaryWithInfo(faceInfo FaceInfo) error {
 		faceInfo.FDID = "1"
 	}
 
-	// 检查是否提供了人脸图片文件路径
-	if faceInfo.FaceFile == "" {
-		return fmt.Errorf("未提供人脸图片文件路径")
+	// 检查是否提供了人脸图片文件路径或二进制数据
+	if faceInfo.FaceFile == "" && len(faceInfo.FaceData) == 0 {
+		return fmt.Errorf("未提供人脸图片文件路径或二进制数据")
 	}
 
 	// 构建人脸信息JSON
@@ -30,6 +30,12 @@ func (c *ACSClient) AddFaceByBinaryWithInfo(faceInfo FaceInfo) error {
 		"FPID": "%s"
 	}`, faceInfo.FaceLibType, faceInfo.FDID, faceInfo.EmployeeNo)
 
+	// 如果提供了二进制数据，则直接使用
+	if len(faceInfo.FaceData) > 0 {
+		return c.faceManage.AddFaceByBinaryWithJSONAndData(c.lUserID, jsonData, faceInfo.FaceData)
+	}
+
+	// 否则使用文件路径
 	return c.faceManage.AddFaceByBinaryWithJSON(c.lUserID, jsonData, faceInfo.FaceFile)
 }
 

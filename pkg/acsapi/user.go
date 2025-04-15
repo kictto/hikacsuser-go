@@ -197,3 +197,127 @@ func (c *ACSClient) DeleteUsers(employeeNos []string) []error {
 
 	return errors
 }
+
+// SetupUser 设置用户信息（支持新增和修改）
+// 使用PUT /ISAPI/AccessControl/UserInfo/SetUp?format=json接口
+func (c *ACSClient) SetupUser(userInfo UserInfo) error {
+	if c.lUserID < 0 {
+		return fmt.Errorf("未登录设备")
+	}
+
+	// 设置默认值
+	if userInfo.Name == "" {
+		userInfo.Name = "测试用户"
+	}
+	if userInfo.UserType == "" {
+		userInfo.UserType = "normal"
+	}
+	if userInfo.BelongGroup == "" {
+		userInfo.BelongGroup = "1"
+	}
+	if userInfo.DoorRight == "" {
+		userInfo.DoorRight = "1"
+	}
+	if userInfo.UserVerifyMode == "" {
+		userInfo.UserVerifyMode = "cardOrFace"
+	}
+
+	// 设置有效期默认值
+	if userInfo.Valid.TimeType == "" {
+		userInfo.Valid.TimeType = "local"
+	}
+	if userInfo.Valid.BeginTime.IsZero() {
+		userInfo.Valid.BeginTime = defaultBeginTime
+	}
+	if userInfo.Valid.EndTime.IsZero() {
+		userInfo.Valid.EndTime = defaultEndTime
+	}
+
+	// 设置权限计划默认值
+	if len(userInfo.RightPlan) == 0 {
+		userInfo.RightPlan = []DoorPlan{{
+			DoorNo:         1,
+			PlanTemplateNo: "1",
+		}}
+	}
+
+	// 构建用户信息JSON
+	rightPlanJSON := ""
+	for i, plan := range userInfo.RightPlan {
+		if i > 0 {
+			rightPlanJSON += ","
+		}
+		rightPlanJSON += fmt.Sprintf(`{
+				"doorNo": %d,
+				"planTemplateNo": "%s"
+			}`, plan.DoorNo, plan.PlanTemplateNo)
+	}
+
+	jsonData := fmt.Sprintf(`{
+		"UserInfo": {
+			"employeeNo": "%s",
+			"name": "%s",
+			"userType": "%s",
+			"Valid": {
+				"enable": %t,
+				"beginTime": "%s",
+				"endTime": "%s",
+				"timeType": "%s"
+			},
+			"belongGroup": "%s",
+			"doorRight": "%s",
+			"password": "%s",
+			"RightPlan": [
+				%s
+			],
+			"maxOpenDoorTime": %d,
+			"openDoorTime": %d,
+			"localUIRight": %t,
+			"userVerifyMode": "%s"
+		}
+	}`,
+		userInfo.EmployeeNo,
+		userInfo.Name,
+		userInfo.UserType,
+		userInfo.Valid.Enable,
+		userInfo.Valid.BeginTime.Format(timeFormat),
+		userInfo.Valid.EndTime.Format(timeFormat),
+		userInfo.Valid.TimeType,
+		userInfo.BelongGroup,
+		userInfo.DoorRight,
+		userInfo.Password,
+		rightPlanJSON,
+		userInfo.MaxOpenDoorTime,
+		userInfo.OpenDoorTime,
+		userInfo.LocalUIRight,
+		userInfo.UserVerifyMode)
+
+	// URL - 使用SetUp接口，支持新增和修改
+	url := "PUT /ISAPI/AccessControl/UserInfo/SetUp?format=json"
+
+	// 发送ISAPI请求
+	response, err := c.userManage.SendISAPIRequest(c.lUserID, url, []byte(jsonData))
+	if err != nil {
+		return fmt.Errorf("设置用户信息失败: %v", err)
+	}
+
+	fmt.Printf("设置用户信息成功, 响应: %s\n", string(response))
+	return nil
+}
+
+// SetupUsers 批量设置用户信息（支持新增和修改）
+func (c *ACSClient) SetupUsers(userInfos []UserInfo) []error {
+	if c.lUserID < 0 {
+		return []error{fmt.Errorf("未登录设备")}
+	}
+
+	errors := make([]error, 0)
+	for _, userInfo := range userInfos {
+		err := c.SetupUser(userInfo)
+		if err != nil {
+			errors = append(errors, fmt.Errorf("设置用户 %s 信息失败: %v", userInfo.EmployeeNo, err))
+		}
+	}
+
+	return errors
+}

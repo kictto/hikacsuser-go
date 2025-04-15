@@ -105,7 +105,7 @@ func LoadPicture(filePath string) ([]byte, error) {
 	}
 	defer file.Close()
 
-	return ioutil.ReadAll(file)
+	return io.ReadAll(file)
 }
 
 // SavePicture 保存字节数组到图片文件

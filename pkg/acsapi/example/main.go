@@ -7,6 +7,13 @@ import (
 	"time"
 )
 
+// 报警事件回调函数
+func alarmCallback(alarmType int, alarmInfo interface{}) error {
+	// 打印报警类型和信息
+	fmt.Printf("收到报警事件: 类型=%d, 信息=%v\n", alarmType, alarmInfo)
+	return nil
+}
+
 func main() {
 	// 创建门禁系统客户端
 	client, err := acsapi.NewACSClient()
@@ -16,7 +23,7 @@ func main() {
 	}
 
 	// 登录设备
-	loginInfo, deviceInfo, err := client.Login("192.168.1.5", 8000, "admin", "password")
+	loginInfo, deviceInfo, err := client.Login("192.168.1.12", 8000, "admin", "zswlzswl2025")
 	if err != nil {
 		fmt.Printf("登录设备失败: %v\n", err)
 		return
@@ -83,6 +90,33 @@ func main() {
 	err = client.SearchUser()
 	if err != nil {
 		fmt.Printf("查询用户信息失败: %v\n", err)
+	}
+
+	// 示例9: 设置布控
+	fmt.Println("\n[示例9] 设置布控")
+	// 设置布控，传入回调函数和强制替换参数
+	alarmHandle, err := client.SetupAlarm(alarmCallback, true)
+	if err != nil {
+		fmt.Printf("设置布控失败: %v\n", err)
+	} else {
+		fmt.Printf("设置布控成功，句柄: %d\n", alarmHandle)
+
+		// 获取布控状态
+		isSetup, handle := client.GetAlarmStatus()
+		fmt.Printf("布控状态: 是否已布控=%v, 句柄=%d\n", isSetup, handle)
+
+		// 等待一段时间，以便接收报警事件
+		fmt.Println("等待10秒钟接收报警事件...")
+		time.Sleep(10 * time.Second)
+
+		// 关闭布控
+		fmt.Println("关闭布控...")
+		err = client.CloseAlarm()
+		if err != nil {
+			fmt.Printf("关闭布控失败: %v\n", err)
+		} else {
+			fmt.Println("关闭布控成功")
+		}
 	}
 
 	// 等待一段时间，确保操作完成

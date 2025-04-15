@@ -1,6 +1,8 @@
 package acsapi
 
-import "time"
+import (
+	"time"
+)
 
 // UserInfo 用户信息结构体，用于注册用户
 type UserInfo struct {
@@ -46,6 +48,7 @@ type FaceInfo struct {
 	FDID        string // 人脸库ID，默认为"1"
 	FaceURL     string // 人脸图片URL，用于URL方式添加人脸
 	FaceFile    string // 人脸图片文件路径，用于二进制方式添加人脸
+	FaceData    []byte // 人脸图片二进制数据，可直接传递图片数据，与FaceFile二选一
 }
 
 // LoginInfo 登录信息
@@ -72,4 +75,70 @@ type DeviceInfo struct {
 	ZeroChannelNum    byte   // 零通道数
 	PasswordLevel     byte   // 密码安全等级
 	OEMCode           uint32 // OEM代码
+}
+
+// Time 时间结构体
+type Time struct {
+	Year   uint32 // 年
+	Month  uint32 // 月
+	Day    uint32 // 日
+	Hour   uint32 // 时
+	Minute uint32 // 分
+	Second uint32 // 秒
+}
+
+// IPAddr IP地址结构体
+type IPAddr struct {
+	IPV4 string // IPv4地址
+}
+
+// ACSEventInfo 门禁事件信息
+type ACSEventInfo struct {
+	CardNo            string // 卡号
+	CardType          byte   // 卡类型
+	WhiteListNo       byte   // 白名单号
+	ReportChannel     byte   // 报告上传通道
+	CardReaderKind    byte   // 读卡器类型
+	CardReaderNo      uint32 // 读卡器编号
+	DoorNo            uint32 // 门编号
+	VerifyNo          uint32 // 多重卡认证序号
+	AlarmInNo         uint32 // 报警输入号
+	AlarmOutNo        uint32 // 报警输出号
+	CaseSensorNo      uint32 // 事件触发器编号
+	Rs485No           uint32 // RS485通道号
+	MultiCardGroupNo  uint32 // 群组编号
+	AccessChannel     uint16 // 通道号
+	DeviceNo          byte   // 设备编号
+	DistractControlNo byte   // 分控器编号
+	EmployeeNo        uint32 // 工号
+	LocalControllerID uint16 // 就地控制器编号
+	InternetAccess    byte   // 网口ID
+	Type              byte   // 防区类型
+}
+
+// ACSAlarmInfo 门禁主机报警信息
+type ACSAlarmInfo struct {
+	Size               uint32       // 结构体大小
+	Major              uint32       // 报警主类型
+	Minor              uint32       // 报警次类型
+	Time               Time         // 报警时间
+	NetUser            string       // 网络操作的用户名
+	RemoteHostAddr     IPAddr       // 远程主机地址
+	AcsEventInfo       ACSEventInfo // 详细参数
+	PicDataLen         uint32       // 图片数据长度
+	PicData            []byte       // 图片数据
+	InductiveEventType uint16       // 归纳事件类型
+	PicTransType       byte         // 图片数据传输方式: 0-binary, 1-url
+	IOTChannelNo       uint32       // IOT通道号
+}
+
+// AlarmInfoV30 通用报警信息结构体
+type AlarmInfoV30 struct {
+	Size               uint32 // 结构体大小
+	AlarmType          uint32 // 报警类型
+	AlarmInputNumber   uint32 // 报警输入口，触发报警的输入口号
+	AlarmOutputNumber  []byte // 触发报警的输出口
+	AlarmRelateChannel []byte // 触发报警的通道
+	Channel            []byte // dwAlarmType为0时，表示触发报警的模拟通道
+	DiskNumber         []byte // dwAlarmType为2时，表示触发报警的硬盘号
 }
