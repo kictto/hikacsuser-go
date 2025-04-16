@@ -1,5 +1,6 @@
 package acsapi
 
+import "C"
 import (
 	"fmt"
 	"strings"
@@ -248,10 +249,43 @@ func sdkMsgCallback(lCommand int, pAlarmer *sdk.NET_DVR_ALARMER, pAlarmInfo unsa
 			}
 
 			// 处理图片数据
+			// 拷贝图片数据
+			// 注意：这里使用了三种方法处理指针，如果一种失败可以尝试另一种
+
 			if acsAlarmInfo.DwPicDataLen > 0 && acsAlarmInfo.PPicData != nil {
-				exportAcsAlarmInfo.PicData = make([]byte, acsAlarmInfo.DwPicDataLen)
+				/*exportAcsAlarmInfo.PicData = make([]byte, acsAlarmInfo.DwPicDataLen)
 				slice := unsafe.Slice(acsAlarmInfo.PPicData, acsAlarmInfo.DwPicDataLen)
-				copy(exportAcsAlarmInfo.PicData, slice)
+				copy(exportAcsAlarmInfo.PicData, slice)*/
+
+				var picData []byte
+				// 方法1: 使用GoBytes直接复制指针内容到Go slice
+				picData = C.GoBytes(unsafe.Pointer(acsAlarmInfo.PPicData), C.int(acsAlarmInfo.DwPicDataLen))
+
+				// 方法2: 如果方法1失败，尝试分配内存并使用memcpy复制
+				if len(picData) == 0 && acsAlarmInfo.DwPicDataLen > 0 {
+					fmt.Println("    方法1获取图片数据失败，尝试方法2")
+					// 分配Go内存
+					picData = make([]byte, acsAlarmInfo.DwPicDataLen)
+					// 使用C.memcpy复制内存
+					C.memcpy(unsafe.Pointer(&picData[0]), unsafe.Pointer(acsAlarmInfo.PPicData), C.size_t(acsAlarmInfo.DwPicDataLen))
+				}
+
+				// 方法3: 如果方法1和方法2都失败，尝试使用unsafe指针操作
+				if len(picData) == 0 && acsAlarmInfo.DwPicDataLen > 0 {
+					fmt.Println("    方法2获取图片数据失败，尝试方法3")
+					picData = make([]byte, acsAlarmInfo.DwPicDataLen)
+
+					// 获取内存起始地址
+					picPtr := unsafe.Pointer(acsAlarmInfo.PPicData)
+
+					// 手动按字节复制
+					picSlice := (*[1 << 30]byte)(picPtr)[:acsAlarmInfo.DwPicDataLen:acsAlarmInfo.DwPicDataLen]
+					copy(picData, picSlice)
+				}
+
+				if picData != nil {
+					exportAcsAlarmInfo.PicData = picData
+				}
 			}
 
 			exportAlarmInfo = exportAcsAlarmInfo
