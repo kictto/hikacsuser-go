@@ -253,6 +253,7 @@ func sdkMsgCallback(lCommand int, pAlarmer *sdk.NET_DVR_ALARMER, pAlarmInfo unsa
 				InductiveEventType: acsAlarmInfo.WInductiveEventType,
 				PicTransType:       acsAlarmInfo.ByPicTransType,
 				IOTChannelNo:       acsAlarmInfo.DwIOTChannelNo,
+				TimeType:           acsAlarmInfo.ByTimeType,
 			}
 
 			// 处理图片数据
@@ -338,6 +339,183 @@ func sdkMsgCallback(lCommand int, pAlarmer *sdk.NET_DVR_ALARMER, pAlarmInfo unsa
 				if len(picData) > 0 {
 					exportAcsAlarmInfo.PicData = picData
 				}
+			}
+
+			// 处理扩展数据 - ACS_EVENT_INFO_EXTEND
+			if acsAlarmInfo.ByAcsEventInfoExtend == 1 && acsAlarmInfo.PAcsEventInfoExtend != nil {
+				// 解析扩展数据
+				acsEventInfoExtend := (*sdk.NET_DVR_ACS_EVENT_INFO_EXTEND)(unsafe.Pointer(acsAlarmInfo.PAcsEventInfoExtend))
+
+				// 转换为导出类型
+				exportAcsEventInfoExtend := &ACSEventInfoExtend{
+					FrontSerialNo:       acsEventInfoExtend.DwFrontSerialNo,
+					UserType:            acsEventInfoExtend.ByUserType,
+					CurrentVerifyMode:   acsEventInfoExtend.ByCurrentVerifyMode,
+					CurrentEvent:        acsEventInfoExtend.ByCurrentEvent,
+					PurePwdVerifyEnable: acsEventInfoExtend.ByPurePwdVerifyEnable,
+					EmployeeNo:          sdk.BytesToString(bytes.Trim(acsEventInfoExtend.ByEmployeeNo[:], "\x00")), // 修正工号字段，去除可能的空字节
+					AttendanceStatus:    acsEventInfoExtend.ByAttendanceStatus,
+					StatusValue:         acsEventInfoExtend.ByStatusValue,
+					UUID:                sdk.BytesToString(bytes.Trim(acsEventInfoExtend.ByUUID[:], "\x00")),       // 修正UUID字段，去除可能的空字节
+					DeviceName:          sdk.BytesToString(bytes.Trim(acsEventInfoExtend.ByDeviceName[:], "\x00")), // 修正设备名称字段，去除可能的空字节
+				}
+
+				exportAcsAlarmInfo.AcsEventInfoExtend = exportAcsEventInfoExtend
+
+				// 打印扩展信息日志
+				fmt.Printf("ACS_EVENT_INFO_EXTEND: EmployeeNo=%s, UserType=%d, CurrentVerifyMode=%d\n",
+					exportAcsEventInfoExtend.EmployeeNo, exportAcsEventInfoExtend.UserType, exportAcsEventInfoExtend.CurrentVerifyMode)
+			}
+
+			// 处理扩展数据 - ACS_EVENT_INFO_EXTEND_V20
+			if acsAlarmInfo.ByAcsEventInfoExtendV20 == 1 && acsAlarmInfo.PAcsEventInfoExtendV20 != nil {
+				// 解析扩展数据
+				acsEventInfoExtendV20 := (*sdk.NET_DVR_ACS_EVENT_INFO_EXTEND_V20)(unsafe.Pointer(acsAlarmInfo.PAcsEventInfoExtendV20))
+
+				// 转换为导出类型
+				exportAcsEventInfoExtendV20 := &ACSEventInfoExtendV20{
+					RemoteCheck:          acsEventInfoExtendV20.ByRemoteCheck,
+					ThermometryUnit:      acsEventInfoExtendV20.ByThermometryUnit,
+					IsAbnomalTemperature: acsEventInfoExtendV20.ByIsAbnomalTemperature,
+					CurrTemperature:      acsEventInfoExtendV20.FCurrTemperature,
+					RegionCoordinates: Point{
+						X: acsEventInfoExtendV20.StruRegionCoordinates.FX,
+						Y: acsEventInfoExtendV20.StruRegionCoordinates.FY,
+					},
+					XCoordinate:   acsEventInfoExtendV20.WXCoordinate,
+					YCoordinate:   acsEventInfoExtendV20.WYCoordinate,
+					Width:         acsEventInfoExtendV20.WWidth,
+					Height:        acsEventInfoExtendV20.WHeight,
+					HealthCode:    acsEventInfoExtendV20.ByHealthCode,
+					NADCode:       acsEventInfoExtendV20.ByNADCode,
+					TravelCode:    acsEventInfoExtendV20.ByTravelCode,
+					VaccineStatus: acsEventInfoExtendV20.ByVaccineStatus,
+				}
+
+				// 输出温度信息和测温单位日志
+				tempUnitStr := "未知"
+				switch acsEventInfoExtendV20.ByThermometryUnit {
+				case 0:
+					tempUnitStr = "摄氏度"
+				case 1:
+					tempUnitStr = "华氏度"
+				case 2:
+					tempUnitStr = "开尔文"
+				}
+
+				fmt.Printf("ACS_EVENT_INFO_EXTEND_V20: 温度=%.1f%s, 是否异常=%d, 测温坐标=(%.3f,%.3f)\n",
+					acsEventInfoExtendV20.FCurrTemperature, tempUnitStr,
+					acsEventInfoExtendV20.ByIsAbnomalTemperature,
+					acsEventInfoExtendV20.StruRegionCoordinates.FX,
+					acsEventInfoExtendV20.StruRegionCoordinates.FY)
+
+				// 处理二维码信息
+				if acsEventInfoExtendV20.DwQRCodeInfoLen > 0 && acsEventInfoExtendV20.PQRCodeInfo != nil {
+					qrCodeBytes := make([]byte, acsEventInfoExtendV20.DwQRCodeInfoLen)
+					qrCodePtr := unsafe.Pointer(acsEventInfoExtendV20.PQRCodeInfo)
+					for i := uint32(0); i < acsEventInfoExtendV20.DwQRCodeInfoLen; i++ {
+						qrCodeBytes[i] = *(*byte)(unsafe.Pointer(uintptr(qrCodePtr) + uintptr(i)))
+					}
+					exportAcsEventInfoExtendV20.QRCodeInfo = string(bytes.Trim(qrCodeBytes, "\x00"))
+					fmt.Printf("ACS_EVENT_INFO_EXTEND_V20: 解析二维码信息，长度=%d\n", acsEventInfoExtendV20.DwQRCodeInfoLen)
+				}
+
+				// 处理可见光图片数据
+				if acsEventInfoExtendV20.DwVisibleLightDataLen > 0 && acsEventInfoExtendV20.PVisibleLightData != nil {
+					visibleLightData := make([]byte, acsEventInfoExtendV20.DwVisibleLightDataLen)
+					visibleLightPtr := unsafe.Pointer(acsEventInfoExtendV20.PVisibleLightData)
+					for i := uint32(0); i < acsEventInfoExtendV20.DwVisibleLightDataLen; i++ {
+						visibleLightData[i] = *(*byte)(unsafe.Pointer(uintptr(visibleLightPtr) + uintptr(i)))
+					}
+					exportAcsEventInfoExtendV20.VisibleLightData = visibleLightData
+					fmt.Printf("ACS_EVENT_INFO_EXTEND_V20: 解析可见光图片数据，长度=%d\n", acsEventInfoExtendV20.DwVisibleLightDataLen)
+				}
+
+				// 处理热成像图片数据
+				if acsEventInfoExtendV20.DwThermalDataLen > 0 && acsEventInfoExtendV20.PThermalData != nil {
+					thermalData := make([]byte, acsEventInfoExtendV20.DwThermalDataLen)
+					thermalPtr := unsafe.Pointer(acsEventInfoExtendV20.PThermalData)
+					for i := uint32(0); i < acsEventInfoExtendV20.DwThermalDataLen; i++ {
+						thermalData[i] = *(*byte)(unsafe.Pointer(uintptr(thermalPtr) + uintptr(i)))
+					}
+					exportAcsEventInfoExtendV20.ThermalData = thermalData
+					fmt.Printf("ACS_EVENT_INFO_EXTEND_V20: 解析热成像图片数据，长度=%d\n", acsEventInfoExtendV20.DwThermalDataLen)
+				}
+
+				// 处理考勤自定义标签
+				if len(acsEventInfoExtendV20.ByAttendanceLabel) > 0 {
+					exportAcsEventInfoExtendV20.AttendanceLabel = sdk.BytesToString(bytes.Trim(acsEventInfoExtendV20.ByAttendanceLabel[:], "\x00"))
+				}
+
+				// 记录健康码、核酸码和疫苗状态信息
+				healthCodeStatus := "未知"
+				switch exportAcsEventInfoExtendV20.HealthCode {
+				case 0:
+					healthCodeStatus = "无效"
+				case 1:
+					healthCodeStatus = "未申领"
+				case 2:
+					healthCodeStatus = "未查询"
+				case 3:
+					healthCodeStatus = "绿码"
+				case 4:
+					healthCodeStatus = "黄码"
+				case 5:
+					healthCodeStatus = "红码"
+				case 6:
+					healthCodeStatus = "无此人员"
+				case 7:
+					healthCodeStatus = "查询失败"
+				case 8:
+					healthCodeStatus = "查询超时"
+				}
+
+				nadCodeStatus := "未知"
+				switch exportAcsEventInfoExtendV20.NADCode {
+				case 0:
+					nadCodeStatus = "无效"
+				case 1:
+					nadCodeStatus = "未查询到"
+				case 2:
+					nadCodeStatus = "阴性(未过期)"
+				case 3:
+					nadCodeStatus = "阴性(已过期)"
+				case 4:
+					nadCodeStatus = "无效(已过期)"
+				}
+
+				travelCodeStatus := "未知"
+				switch exportAcsEventInfoExtendV20.TravelCode {
+				case 0:
+					travelCodeStatus = "无效"
+				case 1:
+					travelCodeStatus = "14天内一直在低风险地区"
+				case 2:
+					travelCodeStatus = "14天内离开过低风险地区"
+				case 3:
+					travelCodeStatus = "14天内到达过中风险地区"
+				case 4:
+					travelCodeStatus = "其他"
+				}
+
+				vaccineStatus := "未知"
+				switch exportAcsEventInfoExtendV20.VaccineStatus {
+				case 0:
+					vaccineStatus = "无效"
+				case 1:
+					vaccineStatus = "未接种"
+				case 2:
+					vaccineStatus = "接种中"
+				case 3:
+					vaccineStatus = "已完成接种"
+				}
+
+				fmt.Printf("ACS_EVENT_INFO_EXTEND_V20: 健康码=%s, 核酸码=%s, 行程码=%s, 疫苗状态=%s, 人脸坐标=(%d,%d), 宽高=(%d,%d)\n",
+					healthCodeStatus, nadCodeStatus, travelCodeStatus, vaccineStatus,
+					exportAcsEventInfoExtendV20.XCoordinate, exportAcsEventInfoExtendV20.YCoordinate,
+					exportAcsEventInfoExtendV20.Width, exportAcsEventInfoExtendV20.Height)
+
+				exportAcsAlarmInfo.AcsEventInfoExtendV20 = exportAcsEventInfoExtendV20
 			}
 
 			exportAlarmInfo = exportAcsAlarmInfo

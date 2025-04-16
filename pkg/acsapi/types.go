@@ -116,21 +116,65 @@ type ACSEventInfo struct {
 	Type              byte   // 防区类型
 }
 
+// Point 坐标点结构体
+type Point struct {
+	X float32 // X坐标
+	Y float32 // Y坐标
+}
+
+// ACSEventInfoExtend 门禁事件扩展信息
+type ACSEventInfoExtend struct {
+	FrontSerialNo       uint32 // 事件流水号
+	UserType            byte   // 人员类型：0-无效，1-普通人（主人），2-来宾（访客），3-禁止名单人，4-管理员
+	CurrentVerifyMode   byte   // 读卡器当前验证方式
+	CurrentEvent        byte   // 是否为实时事件：0-无效，1-是（实时事件），2-否（离线事件）
+	PurePwdVerifyEnable byte   // 设备是否支持纯密码验证：0-不支持，1-支持
+	EmployeeNo          string // 工号，人员ID
+	AttendanceStatus    byte   // 考勤状态：0-未定义,1-上班，2-下班，3-开始休息，4-结束休息，5-开始加班，6-结束加班
+	StatusValue         byte   // 考勤状态值
+	UUID                string // UUID，该字段仅对接萤石平台设备才会使用
+	DeviceName          string // 设备序列号
+}
+
+// ACSEventInfoExtendV20 门禁事件扩展信息V20
+type ACSEventInfoExtendV20 struct {
+	RemoteCheck          byte    // 是否需要远程核验（0-无效，1-不需要（默认），2-需要）
+	ThermometryUnit      byte    // 测温单位：0-摄氏度（默认），1-华氏度，2-开尔文
+	IsAbnomalTemperature byte    // 人脸抓拍测温是否温度异常：1-是，0-否
+	CurrTemperature      float32 // 人脸温度，精确到小数点后一位
+	RegionCoordinates    Point   // 人脸温度坐标
+	QRCodeInfo           string  // 二维码信息
+	VisibleLightData     []byte  // 热成像相机可见光图片
+	ThermalData          []byte  // 热成像图片
+	AttendanceLabel      string  // 考勤自定义标签
+	XCoordinate          uint16  // x坐标，基于左上角，图片的归一化坐标，范围0-1000
+	YCoordinate          uint16  // y坐标，基于左上角，图片的归一化坐标，范围0-1000
+	Width                uint16  // 人脸宽度，范围0-1000
+	Height               uint16  // 人脸高度，范围0-1000
+	HealthCode           byte    // 健康码状态, 0-无效, 1-未申领, 2-未查询, 3-绿码, 4-黄码, 5-红码, 6-无此人员, 7-健康码信息接口异常（查询失败）, 8-查询超时超时
+	NADCode              byte    // 核酸检测, 0-无效, 1-未查询到核酸检测, 2-核酸阴性（未过期）, 3-核酸阴性（已过期）, 4-核酸检测无效（已过期）
+	TravelCode           byte    // 行程码, 0-无效, 1-14天内一直在低风险地区, 2-14天内离开过低风险地区, 3-14天内到达过中风险地区, 4-其他
+	VaccineStatus        byte    // 疫苗状态, 0-无效, 1-未接种疫苗, 2-接种疫苗中, 3-完成疫苗接种
+}
+
 // ACSAlarmInfo 门禁主机报警信息
 type ACSAlarmInfo struct {
-	Size               uint32       // 结构体大小
-	Major              uint32       // 报警主类型
-	Minor              uint32       // 报警次类型
-	Time               Time         // 报警时间
-	NetUser            string       // 网络操作的用户名
-	RemoteHostAddr     IPAddr       // 远程主机地址
-	AcsEventInfo       ACSEventInfo // 详细参数
-	PicDataLen         uint32       // 图片数据长度
-	PicData            []byte       // 图片数据
-	PicUri             string
-	InductiveEventType uint16 // 归纳事件类型
-	PicTransType       byte   // 图片数据传输方式: 0-binary, 1-url
-	IOTChannelNo       uint32 // IOT通道号
+	Size                  uint32                 // 结构体大小
+	Major                 uint32                 // 报警主类型
+	Minor                 uint32                 // 报警次类型
+	Time                  Time                   // 报警时间
+	NetUser               string                 // 网络操作的用户名
+	RemoteHostAddr        IPAddr                 // 远程主机地址
+	AcsEventInfo          ACSEventInfo           // 详细参数
+	PicDataLen            uint32                 // 图片数据长度
+	PicData               []byte                 // 图片数据
+	PicUri                string                 // 图片URI（当PicTransType=1时有效）
+	InductiveEventType    uint16                 // 归纳事件类型
+	PicTransType          byte                   // 图片数据传输方式: 0-binary, 1-url
+	IOTChannelNo          uint32                 // IOT通道号
+	AcsEventInfoExtend    *ACSEventInfoExtend    // 门禁事件扩展信息
+	TimeType              byte                   // 时间类型：0-设备本地时间，1-UTC时间
+	AcsEventInfoExtendV20 *ACSEventInfoExtendV20 // 门禁事件扩展信息V20
 }
 
 // AlarmInfoV30 通用报警信息结构体

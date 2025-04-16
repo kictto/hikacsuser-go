@@ -23,7 +23,7 @@ func main() {
 	}
 
 	// 登录设备
-	loginInfo, deviceInfo, err := client.Login("192.168.1.12", 8000, "admin", "zswlzswl2025")
+	loginInfo, deviceInfo, err := client.Login("192.168.1.5", 8000, "admin", "zswlzswl2025")
 	if err != nil {
 		fmt.Printf("登录设备失败: %v\n", err)
 		return
@@ -95,7 +95,7 @@ func main() {
 	// 示例9: 设置布控
 	fmt.Println("\n[示例9] 设置布控")
 	// 设置布控，传入回调函数和强制替换参数
-	alarmHandle, err := client.SetupAlarm(alarmCallback, true)
+	alarmHandle, err := client.SetupAlarm(alarmCallback, true, true)
 	if err != nil {
 		fmt.Printf("设置布控失败: %v\n", err)
 	} else {
@@ -107,7 +107,7 @@ func main() {
 
 		// 等待一段时间，以便接收报警事件
 		fmt.Println("等待10秒钟接收报警事件...")
-		time.Sleep(10 * time.Second)
+		time.Sleep(10000 * time.Second)
 
 		// 关闭布控
 		fmt.Println("关闭布控...")
