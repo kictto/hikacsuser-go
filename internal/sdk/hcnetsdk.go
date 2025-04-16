@@ -48,7 +48,7 @@ import (
 // 	MAX_DOOR_NUM_256          = 256 // 最大门数256
 // 	MAX_CASE_SENSOR_NUM       = 8   // 最大事件触发器数
 // 	MAX_ALARMHOST_ALARMIN_NUM = 512 // 最大报警主机报警输入口数
-// 
+//
 // 	// 网络SDK错误码
 // 	NET_DVR_NOERROR              = 0  // 没有错误
 // 	NET_DVR_PASSWORD_ERROR       = 1  // 用户名密码错误
@@ -65,25 +65,25 @@ import (
 // 	NET_DVR_ORDER_ERROR          = 12 // 调用次序错误
 // 	NET_DVR_OPERNOPERMIT         = 13 // 无此权限
 // 	NET_DVR_PARAMETER_ERROR      = 17 // 参数错误
-// 
+//
 // 	// 配置SDK初始化参数类型
 // 	NET_SDK_INIT_CFG_SDK_PATH    = 2 // 设置HCNetSDK库所在目录
 // 	NET_SDK_INIT_CFG_LIBEAY_PATH = 3 // 设置OpenSSL的libeay32.dll/libcrypto.so/libcrypto.dylib所在路径
 // 	NET_SDK_INIT_CFG_SSLEAY_PATH = 4 // 设置OpenSSL的ssleay32.dll/libssl.so/libssl.dylib所在路径
-// 
+//
 // 	// 远程配置标志
 // 	NET_SDK_CONFIG_STATUS_SUCCESS   = 1000 // 配置成功
 // 	NET_SDK_CONFIG_STATUS_NEED_WAIT = 1001 // 配置等待
 // 	NET_SDK_CONFIG_STATUS_FINISH    = 1002 // 配置完成
 // 	NET_SDK_CONFIG_STATUS_FAILED    = 1003 // 配置失败
 // 	NET_SDK_CONFIG_STATUS_EXCEPTION = 1004 // 配置异常
-// 	
+//
 // 	// 获取下一个状态标志
 // 	NET_SDK_GET_NEXT_STATUS_SUCCESS = 1000 // 获取成功
 // 	NET_SDK_GET_NEXT_STATUS_NEED_WAIT = 1001 // 需要等待
 // 	NET_SDK_NEXT_STATUS__FINISH = 1002 // 获取完成
 // 	NET_SDK_GET_NEXT_STATUS_FAILED = 1003 // 获取失败
-// 
+//
 // 	// 设备登录模式
 // 	NET_DVR_LOGIN_SUCCESS          = 1   // 登录成功
 // 	NET_DVR_LOGIN_ERROR_PASSWORD   = 2   // 密码错误
@@ -97,24 +97,24 @@ import (
 // 	NET_DVR_DEV_ADDRESS_MAX_LEN    = 129 // 设备地址最大长度
 // 	NET_DVR_LOGIN_USERNAME_MAX_LEN = 64  // 登录用户名最大长度
 // 	NET_DVR_LOGIN_PASSWD_MAX_LEN   = 64  // 登录密码最大长度
-// 
+//
 // 	// ISAPI协议命令
 // 	COMM_ISAPI_CONFIG        = 16010 // ISAPI协议命令
 // 	NET_DVR_JSON_CONFIG      = 2550  // JSON配置命令
 // 	NET_DVR_FACE_DATA_SEARCH = 2552  // 查询人脸库中的人脸数据
-// 
+//
 // 	// 门禁主机参数配置命令
 // 	NET_DVR_GET_ACS_EVENT       = 2514  // 获取门禁事件
 // 	NET_DVR_GET_ACS_CFG             = 2159 // 获取门禁主机参数
 // 	NET_DVR_SET_ACS_CFG             = 2160 // 设置门禁主机参数
 // 	NET_DVR_GET_ACS_WORK_STATUS_V50 = 2180 // 获取门禁主机工作状态
-// 
+//
 // 	// 报警主机相关常量
 // 	MAX_ALARMHOST_ALARMOUT_NUM = 512 // 最大报警主机报警输出口数
-// 
+//
 // 	ACS_CARD_NO_LEN = 32 // 门禁卡号长度
 // 	NET_SDK_MONITOR_ID_LEN = 64 // 布防点ID长度
-// 
+//
 // )
 
 // BYTE_ARRAY 类型定义，用于接口传递字节数组
@@ -203,44 +203,44 @@ type MSGCallBack_V31 func(lCommand int, pAlarmer *NET_DVR_ALARMER, pAlarmInfo un
 
 // NET_DVR_ALARMER 报警设备信息结构体
 type NET_DVR_ALARMER struct {
-	ByUserIDValid     byte          // userid是否有效 0-无效，1-有效
-	BySerialValid     byte          // 序列号是否有效 0-无效，1-有效
-	ByVersionValid    byte          // 版本号是否有效 0-无效，1-有效
-	ByDeviceNameValid byte          // 设备名字是否有效 0-无效，1-有效
-	ByMacAddrValid    byte          // MAC地址是否有效 0-无效，1-有效
-	ByLinkPortValid   byte          // login端口是否有效 0-无效，1-有效
-	ByDeviceIPValid   byte          // 设备IP是否有效 0-无效，1-有效
-	BySocketIPValid   byte          // socket ip是否有效 0-无效，1-有效
-	LUserID           int32         // NET_DVR_Login()返回值, 布防时有效
+	ByUserIDValid     byte               // userid是否有效 0-无效，1-有效
+	BySerialValid     byte               // 序列号是否有效 0-无效，1-有效
+	ByVersionValid    byte               // 版本号是否有效 0-无效，1-有效
+	ByDeviceNameValid byte               // 设备名字是否有效 0-无效，1-有效
+	ByMacAddrValid    byte               // MAC地址是否有效 0-无效，1-有效
+	ByLinkPortValid   byte               // login端口是否有效 0-无效，1-有效
+	ByDeviceIPValid   byte               // 设备IP是否有效 0-无效，1-有效
+	BySocketIPValid   byte               // socket ip是否有效 0-无效，1-有效
+	LUserID           int32              // NET_DVR_Login()返回值, 布防时有效
 	SSerialNumber     [SERIALNO_LEN]byte // 序列号
-	DwDeviceVersion   uint32        // 版本信息 高16位表示主版本，低16位表示次版本
-	SDeviceName       [NAME_LEN]byte // 设备名字
-	ByMacAddr         [MACADDR_LEN]byte // MAC地址
-	WLinkPort         uint16        // link port
-	SDeviceIP         [128]byte      // IP地址
-	SSocketIP         [128]byte      // 报警主动上传时的socket IP地址
-	ByIpProtocol      byte          // Ip协议 0-IPV4, 1-IPV6
+	DwDeviceVersion   uint32             // 版本信息 高16位表示主版本，低16位表示次版本
+	SDeviceName       [NAME_LEN]byte     // 设备名字
+	ByMacAddr         [MACADDR_LEN]byte  // MAC地址
+	WLinkPort         uint16             // link port
+	SDeviceIP         [128]byte          // IP地址
+	SSocketIP         [128]byte          // 报警主动上传时的socket IP地址
+	ByIpProtocol      byte               // Ip协议 0-IPV4, 1-IPV6
 	ByRes2            [11]byte
 }
 
 // NET_DVR_SETUPALARM_PARAM 布防参数结构体 V41
 type NET_DVR_SETUPALARM_PARAM struct {
-	DwSize          uint32 // 结构体大小
-	ByLevel         byte   // 布防优先级，0-一等级（高），1-二等级（中），2-三等级（低）
-	ByAlarmInfoType byte   // 报警信息上传方式：0-老报警信息（NET_DVR_ALARMINFO），1-新报警信息(NET_DVR_ALARMINFO_V30)
-	ByRetAlarmTypeV40 byte // V40报警信息类型
-	ByRetDevInfoVersion byte // V40报警信息对应设备信息版本号
-	ByRetVQDAlarmType byte   // VQD报警上传类型（用于报警类型区分）
-	ByFaceAlarmDetection byte // 人脸报警信息类型
-	BySupport  byte
-	ByBrokenNetHttp byte
-	WSeverityFilter   uint16 // 严重程度，用于SMART IPC
-	BySnapTimes       byte   // 设备联动抓图次数
-	BySnapSeq         byte   // 设备联动抓图序号
-	ByRelRecordChan   byte
-	ByRes1            [12]byte
-	ByChannel         byte // 触发报警的通道号
-	ByRes             [35]byte
+	DwSize               uint32 // 结构体大小
+	ByLevel              byte   // 布防优先级，0-一等级（高），1-二等级（中），2-三等级（低）
+	ByAlarmInfoType      byte   // 报警信息上传方式：0-老报警信息（NET_DVR_ALARMINFO），1-新报警信息(NET_DVR_ALARMINFO_V30)
+	ByRetAlarmTypeV40    byte   // V40报警信息类型
+	ByRetDevInfoVersion  byte   // V40报警信息对应设备信息版本号
+	ByRetVQDAlarmType    byte   // VQD报警上传类型（用于报警类型区分）
+	ByFaceAlarmDetection byte   // 人脸报警信息类型
+	BySupport            byte
+	ByBrokenNetHttp      byte
+	WSeverityFilter      uint16 // 严重程度，用于SMART IPC
+	BySnapTimes          byte   // 设备联动抓图次数
+	BySnapSeq            byte   // 设备联动抓图序号
+	ByRelRecordChan      byte
+	ByRes1               [12]byte
+	ByChannel            byte // 触发报警的通道号
+	ByRes                [35]byte
 }
 
 // HCNetSDK 定义了SDK的主要函数接口
@@ -281,7 +281,7 @@ type HCNetSDK interface {
 	NET_DVR_SetupAlarmChan_V41(lUserID int, lpSetupParam *NET_DVR_SETUPALARM_PARAM) int
 	NET_DVR_CloseAlarmChan_V30(lAlarmHandle int) bool
 	NET_DVR_SetDVRMessageCallBack_V50(iIndex int, fMessageCallBack MSGCallBack_V31, pUser unsafe.Pointer) bool
-	
+
 	// 图片查找和获取
 	NET_DVR_FindPicture(lUserID int, pFindParam *NET_DVR_FIND_PICTURE_PARAM) int
 	NET_DVR_FindNextPicture(lFindHandle int, lpFindData *NET_DVR_FIND_PICTURE) int

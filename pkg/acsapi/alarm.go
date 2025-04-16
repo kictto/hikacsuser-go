@@ -4,7 +4,10 @@ package acsapi
 // #include <string.h>
 import "C"
 import (
+	"bytes"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 	"sync"
 	"unsafe"
@@ -18,9 +21,10 @@ type AlarmCallback func(alarmType int, alarmInfo interface{}) error
 
 // AlarmSession 布控会话信息
 type AlarmSession struct {
-	DeviceID    string        // 设备标识（IP+端口）
-	AlarmHandle int           // 布控句柄
-	Callback    AlarmCallback // 回调函数
+	DeviceID           string        // 设备标识（IP+端口）
+	AlarmHandle        int           // 布控句柄
+	Callback           AlarmCallback // 回调函数
+	AutoDownloadPicUrl bool          // 是否自动下载图片URL数据
 }
 
 // 全局布控会话管理
@@ -33,7 +37,7 @@ var (
 // callback: 布控回调函数，当有报警事件时会调用此函数
 // forceReplace: 是否强制替换现有布控，true表示如果已存在布控则先关闭再重新布控，false表示如果已存在则跳过
 // 返回值: 布控句柄和错误信息
-func (c *ACSClient) SetupAlarm(callback AlarmCallback, forceReplace bool) (int, error) {
+func (c *ACSClient) SetupAlarm(callback AlarmCallback, forceReplace bool, autoDownloadPicUrl bool) (int, error) {
 	if c.lUserID < 0 {
 		return -1, fmt.Errorf("未登录设备")
 	}
@@ -84,9 +88,10 @@ func (c *ACSClient) SetupAlarm(callback AlarmCallback, forceReplace bool) (int, 
 
 	// 保存布控会话
 	session := &AlarmSession{
-		DeviceID:    deviceID,
-		AlarmHandle: c.alarmManage.AlarmHandle,
-		Callback:    callback,
+		DeviceID:           deviceID,
+		AlarmHandle:        c.alarmManage.AlarmHandle,
+		Callback:           callback,
+		AutoDownloadPicUrl: autoDownloadPicUrl,
 	}
 
 	alarmSessionsLock.Lock()
@@ -251,41 +256,86 @@ func sdkMsgCallback(lCommand int, pAlarmer *sdk.NET_DVR_ALARMER, pAlarmInfo unsa
 			}
 
 			// 处理图片数据
-			// 拷贝图片数据
-			// 注意：这里使用了三种方法处理指针，如果一种失败可以尝试另一种
-
 			if acsAlarmInfo.DwPicDataLen > 0 && acsAlarmInfo.PPicData != nil {
-				/*exportAcsAlarmInfo.PicData = make([]byte, acsAlarmInfo.DwPicDataLen)
-				slice := unsafe.Slice(acsAlarmInfo.PPicData, acsAlarmInfo.DwPicDataLen)
-				copy(exportAcsAlarmInfo.PicData, slice)*/
-
 				var picData []byte
-				// 方法1: 使用GoBytes直接复制指针内容到Go slice
-				picData = C.GoBytes(unsafe.Pointer(acsAlarmInfo.PPicData), C.int(acsAlarmInfo.DwPicDataLen))
 
-				// 方法2: 如果方法1失败，尝试分配内存并使用memcpy复制
-				if len(picData) == 0 && acsAlarmInfo.DwPicDataLen > 0 {
-					fmt.Println("    方法1获取图片数据失败，尝试方法2")
-					// 分配Go内存
-					picData = make([]byte, acsAlarmInfo.DwPicDataLen)
-					// 使用C.memcpy复制内存
-					C.memcpy(unsafe.Pointer(&picData[0]), unsafe.Pointer(acsAlarmInfo.PPicData), C.size_t(acsAlarmInfo.DwPicDataLen))
-				}
+				// 检查是否是URL传输方式
+				if acsAlarmInfo.ByPicTransType == 1 {
+					// 对于URL方式，获取URL字符串
+					urlBytes := make([]byte, 1024) // 假设URL不会超过1024字节
 
-				// 方法3: 如果方法1和方法2都失败，尝试使用unsafe指针操作
-				if len(picData) == 0 && acsAlarmInfo.DwPicDataLen > 0 {
-					fmt.Println("    方法2获取图片数据失败，尝试方法3")
-					picData = make([]byte, acsAlarmInfo.DwPicDataLen)
-
-					// 获取内存起始地址
+					// 从PPicData复制数据到urlBytes
 					picPtr := unsafe.Pointer(acsAlarmInfo.PPicData)
+					for i := 0; i < 1024; i++ {
+						b := *(*byte)(unsafe.Pointer(uintptr(picPtr) + uintptr(i)))
+						urlBytes[i] = b
+						if b == 0 { // 找到字符串结束符
+							break
+						}
+					}
 
-					// 手动按字节复制
-					picSlice := (*[1 << 30]byte)(picPtr)[:acsAlarmInfo.DwPicDataLen:acsAlarmInfo.DwPicDataLen]
-					copy(picData, picSlice)
+					// 去除可能的空字节
+					urlBytes = bytes.Trim(urlBytes, "\x00")
+					if len(urlBytes) > 0 {
+						urlStr := string(urlBytes)
+
+						if len(urlStr) > 0 {
+							exportAcsAlarmInfo.PicUri = urlStr
+						}
+
+						// 根据autoDownloadPicUrl参数决定是否下载图片
+						if session.AutoDownloadPicUrl {
+							// 从URL下载图片
+							resp, httpErr := http.Get(urlStr)
+							if httpErr == nil {
+								defer resp.Body.Close()
+
+								// 检查HTTP状态码
+								if resp.StatusCode == http.StatusOK {
+									// 读取图片数据
+									picData, _ = io.ReadAll(resp.Body)
+								}
+							}
+						}
+					}
+				} else {
+					// 二进制数据方式
+					// 尝试确定图片的实际大小
+					// JPEG文件以FF D8开始，以FF D9结束
+					maxSize := uint32(10 * 1024 * 1024) // 最大10MB
+					tempBuf := make([]byte, maxSize)
+
+					// 从PPicData复制数据到tempBuf
+					picPtr := unsafe.Pointer(acsAlarmInfo.PPicData)
+					var actualSize uint32
+					for i := uint32(0); i < maxSize; i++ {
+						tempBuf[i] = *(*byte)(unsafe.Pointer(uintptr(picPtr) + uintptr(i)))
+
+						// 检查是否找到JPEG结束标记(FF D9)
+						if i > 1 && tempBuf[i-1] == 0xFF && tempBuf[i] == 0xD9 {
+							actualSize = i + 1 // 包括结束标记
+							break
+						}
+					}
+
+					if actualSize > 0 {
+						picData = tempBuf[:actualSize]
+					} else {
+						// 如果无法确定大小，使用一个合理的固定大小
+						fixedSize := uint32(100 * 1024) // 100KB
+						picData = C.GoBytes(unsafe.Pointer(acsAlarmInfo.PPicData), C.int(fixedSize))
+
+						// 尝试查找JPEG结束标记来截断数据
+						for i := uint32(0); i < uint32(len(picData))-1; i++ {
+							if picData[i] == 0xFF && picData[i+1] == 0xD9 {
+								picData = picData[:i+2] // 截断到JPEG结束标记
+								break
+							}
+						}
+					}
 				}
 
-				if picData != nil {
+				if len(picData) > 0 {
 					exportAcsAlarmInfo.PicData = picData
 				}
 			}

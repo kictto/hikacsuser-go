@@ -127,9 +127,10 @@ type ACSAlarmInfo struct {
 	AcsEventInfo       ACSEventInfo // 详细参数
 	PicDataLen         uint32       // 图片数据长度
 	PicData            []byte       // 图片数据
-	InductiveEventType uint16       // 归纳事件类型
-	PicTransType       byte         // 图片数据传输方式: 0-binary, 1-url
-	IOTChannelNo       uint32       // IOT通道号
+	PicUri             string
+	InductiveEventType uint16 // 归纳事件类型
+	PicTransType       byte   // 图片数据传输方式: 0-binary, 1-url
+	IOTChannelNo       uint32 // IOT通道号
 }
 
 // AlarmInfoV30 通用报警信息结构体

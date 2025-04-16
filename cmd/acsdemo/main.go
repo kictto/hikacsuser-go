@@ -11,7 +11,10 @@ import (
 	"github.com/clockworkchen/hikacsuser-go/internal/models"
 	"github.com/clockworkchen/hikacsuser-go/internal/sdk"
 	"github.com/clockworkchen/hikacsuser-go/internal/utils"
+	"io"
+	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -367,41 +370,124 @@ func MsgCallback(lCommand int, pAlarmer *sdk.NET_DVR_ALARMER, pAlarmInfo unsafe.
 			//  }
 
 			// 如果有图片信息，可以保存或处理
+			// 根据SDK文档，DwPicDataLen=1只表示有图片，而不是图片的实际大小
 			if acsAlarmInfo.DwPicDataLen > 0 && acsAlarmInfo.PPicData != nil {
-				fmt.Printf("    包含图片数据，长度: %d，指针地址: %p\n", acsAlarmInfo.DwPicDataLen, acsAlarmInfo.PPicData)
+				fmt.Printf("    包含图片数据，指针地址: %p\n", acsAlarmInfo.PPicData)
 
 				// 拷贝图片数据
-				// 注意：这里使用了三种方法处理指针，如果一种失败可以尝试另一种
+				// 注意：这里不能使用DwPicDataLen作为图片大小，因为它可能只是一个标志值
 				var picData []byte
+				var actualSize uint32
 
-				// 方法1: 使用GoBytes直接复制指针内容到Go slice
-				picData = C.GoBytes(unsafe.Pointer(acsAlarmInfo.PPicData), C.int(acsAlarmInfo.DwPicDataLen))
+				// 首先检查是否是URL传输方式
+				if acsAlarmInfo.ByPicTransType == 1 {
+					fmt.Println("    图片为URL传输方式，尝试获取URL...")
 
-				// 方法2: 如果方法1失败，尝试分配内存并使用memcpy复制
-				if len(picData) == 0 && acsAlarmInfo.DwPicDataLen > 0 {
-					fmt.Println("    方法1获取图片数据失败，尝试方法2")
-					// 分配Go内存
-					picData = make([]byte, acsAlarmInfo.DwPicDataLen)
-					// 使用C.memcpy复制内存
-					C.memcpy(unsafe.Pointer(&picData[0]), unsafe.Pointer(acsAlarmInfo.PPicData), C.size_t(acsAlarmInfo.DwPicDataLen))
-				}
+					// 对于URL方式，我们需要获取URL字符串
+					// 尝试获取URL字符串，这里需要找到字符串的结束位置
+					// 假设URL是以null结尾的C字符串
+					urlBytes := make([]byte, 1024) // 假设URL不会超过1024字节
 
-				// 方法3: 如果方法1和方法2都失败，尝试使用unsafe指针操作
-				if len(picData) == 0 && acsAlarmInfo.DwPicDataLen > 0 {
-					fmt.Println("    方法2获取图片数据失败，尝试方法3")
-					picData = make([]byte, acsAlarmInfo.DwPicDataLen)
-
-					// 获取内存起始地址
+					// 从PPicData复制数据到urlBytes
 					picPtr := unsafe.Pointer(acsAlarmInfo.PPicData)
+					for i := 0; i < 1024; i++ {
+						b := *(*byte)(unsafe.Pointer(uintptr(picPtr) + uintptr(i)))
+						urlBytes[i] = b
+						if b == 0 { // 找到字符串结束符
+							break
+						}
+					}
 
-					// 手动按字节复制
-					picSlice := (*[1 << 30]byte)(picPtr)[:acsAlarmInfo.DwPicDataLen:acsAlarmInfo.DwPicDataLen]
-					copy(picData, picSlice)
+					// 去除可能的空字节
+					urlBytes = bytes.Trim(urlBytes, "\x00")
+					if len(urlBytes) > 0 {
+						urlStr := string(urlBytes)
+						fmt.Printf("    获取到图片URL: %s\n", urlStr)
+
+						// 从URL下载图片
+						fmt.Println("    正在从URL下载图片...")
+						resp, httpErr := http.Get(urlStr)
+						if httpErr != nil {
+							fmt.Printf("    下载图片失败: %v\n", httpErr)
+						} else {
+							defer resp.Body.Close()
+
+							// 检查HTTP状态码
+							if resp.StatusCode != http.StatusOK {
+								fmt.Printf("    下载图片失败，HTTP状态码: %d\n", resp.StatusCode)
+							} else {
+								// 读取图片数据
+								picData, readErr := io.ReadAll(resp.Body)
+								if readErr != nil {
+									fmt.Printf("    读取图片数据失败: %v\n", readErr)
+								} else if len(picData) > 0 {
+									// 创建带时间戳的文件名
+									timestamp := time.Now().UnixNano()
+									picFilename := fmt.Sprintf("alarm_pic_%d.jpg", timestamp)
+
+									// 保存图片数据到文件
+									saveErr := os.WriteFile(picFilename, picData, 0644)
+									if saveErr == nil {
+										// 获取文件的绝对路径
+										absPath, pathErr := filepath.Abs(picFilename)
+										if pathErr != nil {
+											absPath = picFilename // 如果获取绝对路径失败，使用相对路径
+										}
+										fmt.Printf("    URL图片已下载并保存为: %s (数据大小: %d字节)\n", absPath, len(picData))
+									} else {
+										fmt.Printf("    保存下载的图片失败: %v\n", saveErr)
+									}
+								} else {
+									fmt.Println("    下载的图片数据为空")
+								}
+							}
+						}
+					} else {
+						fmt.Println("    无法获取有效的URL")
+					}
+				} else {
+					// 二进制数据方式
+					fmt.Println("    图片为二进制数据方式")
+
+					// 尝试确定图片的实际大小
+					// 方法1：检查JPEG文件头和尾部标记
+					// JPEG文件以FF D8开始，以FF D9结束
+					// 先读取一个较大的缓冲区，然后查找JPEG结束标记
+					maxSize := uint32(10 * 1024 * 1024) // 最大10MB，防止无限读取
+					tempBuf := make([]byte, maxSize)
+
+					// 从PPicData复制数据到tempBuf
+					picPtr := unsafe.Pointer(acsAlarmInfo.PPicData)
+					for i := uint32(0); i < maxSize; i++ {
+						tempBuf[i] = *(*byte)(unsafe.Pointer(uintptr(picPtr) + uintptr(i)))
+
+						// 检查是否找到JPEG结束标记(FF D9)
+						if i > 1 && tempBuf[i-1] == 0xFF && tempBuf[i] == 0xD9 {
+							actualSize = i + 1 // 包括结束标记
+							break
+						}
+					}
+
+					if actualSize > 0 {
+						fmt.Printf("    检测到JPEG图片，实际大小: %d字节\n", actualSize)
+						picData = tempBuf[:actualSize]
+					} else {
+						fmt.Println("    无法确定图片大小，尝试使用固定大小读取")
+						// 如果无法确定大小，使用一个合理的固定大小
+						fixedSize := uint32(100 * 1024) // 100KB
+						picData = C.GoBytes(unsafe.Pointer(acsAlarmInfo.PPicData), C.int(fixedSize))
+
+						// 尝试查找JPEG结束标记来截断数据
+						for i := uint32(0); i < uint32(len(picData))-1; i++ {
+							if picData[i] == 0xFF && picData[i+1] == 0xD9 {
+								picData = picData[:i+2] // 截断到JPEG结束标记
+								break
+							}
+						}
+					}
 				}
 
-				if len(picData) == 0 {
-					fmt.Println("    警告: 无法从指针获取图片数据!")
-				} else {
+				if len(picData) > 0 {
 					// 创建带时间戳的文件名
 					timestamp := time.Now().UnixNano()
 					picFilename := fmt.Sprintf("alarm_pic_%d.jpg", timestamp)
@@ -409,7 +495,12 @@ func MsgCallback(lCommand int, pAlarmer *sdk.NET_DVR_ALARMER, pAlarmInfo unsafe.
 					// 保存图片数据到文件
 					err := os.WriteFile(picFilename, picData, 0644)
 					if err == nil {
-						fmt.Printf("    图片已保存为: %s (数据大小: %d字节)\n", picFilename, len(picData))
+						// 获取文件的绝对路径
+						absPath, pathErr := filepath.Abs(picFilename)
+						if pathErr != nil {
+							absPath = picFilename // 如果获取绝对路径失败，使用相对路径
+						}
+						fmt.Printf("    图片已保存为: %s (数据大小: %d字节)\n", absPath, len(picData))
 						// 打印图片数据的前几个字节，用于调试
 						if len(picData) > 16 {
 							fmt.Printf("    图片数据头: %X\n", picData[:16])
@@ -417,178 +508,22 @@ func MsgCallback(lCommand int, pAlarmer *sdk.NET_DVR_ALARMER, pAlarmInfo unsafe.
 					} else {
 						fmt.Printf("    保存图片失败: %v\n", err)
 					}
+				} else {
+					fmt.Println("    警告: 无法获取有效的图片数据!")
 				}
 			} else if acsAlarmInfo.DwPicDataLen > 0 && acsAlarmInfo.PPicData == nil {
 				fmt.Println("    图片数据指针为空，但DwPicDataLen > 0")
 
 				// 处理URL方式(ByPicTransType=1)的图片传输
 				if acsAlarmInfo.ByPicTransType == 1 {
-					fmt.Println("    图片为URL传输方式，尝试获取URL...")
-
-					// 对于URL方式，我们可能需要从其他字段获取URL
-					// 根据SDK文档，通常是从pPicData或其他字段获取URL字符串
-					// 这里我们尝试从不同的地方获取URL
-
-					if acsAlarmInfo.PPicData != nil {
-						urlBytes := C.GoBytes(unsafe.Pointer(acsAlarmInfo.PPicData), C.int(acsAlarmInfo.DwPicDataLen))
-						// 去除可能的空字节
-						urlBytes = bytes.Trim(urlBytes, "\x00")
-						if len(urlBytes) > 0 {
-							urlStr := string(urlBytes)
-							fmt.Printf("    获取到图片URL: %s\n", urlStr)
-							// 这里可以添加代码从URL下载图片
-						} else {
-							fmt.Println("    无法获取有效的URL")
-						}
-					}
-				}
-
-				// 特殊处理DwPicDataLen=1的情况
-				if acsAlarmInfo.DwPicDataLen == 1 {
-					fmt.Println("    检测到DwPicDataLen=1，这可能表示需要通过查找图片接口获取图片")
-
-					// 获取报警时间，并计算前后5分钟的时间范围用于搜索图片
-					alarmTime := acsAlarmInfo.StruTime
-
-					// 创建查找图片参数结构
-					var findPicture sdk.NET_DVR_FIND_PICTURE_PARAM
-					findPicture.DwSize = uint32(unsafe.Sizeof(findPicture))
-
-					// 设置通道号 - 一般门禁事件使用1或门编号
-					findPicture.LChannel = 1
-
-					// 设置图片类型 - 门禁事件一般使用0xFF (所有类型)
-					findPicture.ByFileType = 0xFF
-
-					// 设置查找时间范围 (报警时间前后5分钟)
-					startTime := alarmTime
-					endTime := alarmTime
-
-					// 开始时间设为报警时间前5分钟
-					if startTime.DwMinute >= 5 {
-						startTime.DwMinute -= 5
-					} else {
-						// 处理分钟减法的借位
-						if startTime.DwHour > 0 {
-							startTime.DwHour -= 1
-							startTime.DwMinute = startTime.DwMinute + 60 - 5
-						} else {
-							// 如果小时也是0，不再往前推
-							startTime.DwMinute = 0
-						}
-					}
-
-					// 结束时间设为报警时间后5分钟
-					if endTime.DwMinute <= 55 {
-						endTime.DwMinute += 5
-					} else {
-						// 处理分钟加法的进位
-						endTime.DwMinute = (endTime.DwMinute + 5) % 60
-						if endTime.DwHour < 23 {
-							endTime.DwHour += 1
-						} else {
-							// 如果已经是23点，不再往后推
-							endTime.DwHour = 23
-							endTime.DwMinute = 59
-						}
-					}
-
-					// 复制开始和结束时间到查找参数
-					findPicture.StruStartTime = startTime
-					findPicture.StruStopTime = endTime
-
-					// 如果有卡号，设置卡号作为查找条件
-					cardNo := string(bytes.Trim(acsAlarmInfo.StruAcsEventInfo.ByCardNo[:], "\x00"))
-					if len(cardNo) > 0 {
-						fmt.Printf("    使用卡号 %s 查找相关图片\n", cardNo)
-						// 复制卡号到查找参数 (如果SDK支持)
-						// copy(findPicture.SCardNum[:], []byte(cardNo))
-					}
-
-					// 开始查找图片
-					lFindHandle := hcnetsdk.NET_DVR_FindPicture(lUserID, &findPicture)
-					if lFindHandle < 0 {
-						fmt.Printf("    查找图片失败，错误码: %d\n", hcnetsdk.NET_DVR_GetLastError())
-					} else {
-						fmt.Printf("    开始查找图片，句柄: %d\n", lFindHandle)
-
-						// 循环获取查找结果
-						maxAttempts := 20 // 最多尝试20次
-						for i := 0; i < maxAttempts; i++ {
-							var findData sdk.NET_DVR_FIND_PICTURE
-							ret := hcnetsdk.NET_DVR_FindNextPicture(lFindHandle, &findData)
-
-							switch ret {
-							case sdk.NET_DVR_FILE_SUCCESS:
-								// 找到图片
-								fileName := string(bytes.Trim(findData.SFileName[:], "\x00"))
-								fmt.Printf("    找到图片: %s\n", fileName)
-
-								// 准备接收图片数据的参数
-								var getPicParam sdk.NET_DVR_GETPIC_PARAM
-								getPicParam.DwSize = uint32(unsafe.Sizeof(getPicParam))
-
-								// 设置图片保存方式 - 0: 二进制数据
-								getPicParam.ByPictype = 0
-
-								// 创建图片文件名
-								picFilename := fmt.Sprintf("alarm_pic_%d_%d.jpg", time.Now().UnixNano(), i)
-
-								// 将Go字符串转换为C字符串，用于设置文件名
-								cFilename := C.CString(picFilename)
-								defer C.free(unsafe.Pointer(cFilename))
-
-								// 设置保存文件名
-								getPicParam.PicName = (*byte)(unsafe.Pointer(cFilename))
-
-								// 获取图片
-								if hcnetsdk.NET_DVR_GetPicture_V50(lUserID, &findData, &getPicParam) {
-									fmt.Printf("    成功保存图片到: %s\n", picFilename)
-								} else {
-									fmt.Printf("    保存图片失败，错误码: %d\n", hcnetsdk.NET_DVR_GetLastError())
-								}
-
-							case sdk.NET_DVR_ISFINDING:
-								// 正在查找，继续等待
-								fmt.Println("    正在查找图片，请等待...")
-								time.Sleep(200 * time.Millisecond)
-								continue
-
-							case sdk.NET_DVR_FILE_NOFIND:
-								// 未找到更多图片
-								fmt.Println("    未找到更多图片")
-								break
-
-							case sdk.NET_DVR_NOMOREFILE:
-								// 没有更多图片
-								fmt.Println("    没有更多图片")
-								break
-
-							case sdk.NET_DVR_FILE_EXCEPTION:
-								// 查找图片异常
-								fmt.Printf("    查找图片异常，错误码: %d\n", hcnetsdk.NET_DVR_GetLastError())
-								break
-
-							default:
-								fmt.Printf("    查找图片返回未知状态: %d\n", ret)
-								break
-							}
-
-							// 如果不是正在查找状态，跳出循环
-							if ret != sdk.NET_DVR_ISFINDING {
-								break
-							}
-						}
-
-						// 关闭查找句柄
-						if !hcnetsdk.NET_DVR_CloseFindPicture(lFindHandle) {
-							fmt.Printf("    关闭查找图片句柄失败，错误码: %d\n", hcnetsdk.NET_DVR_GetLastError())
-						}
-					}
+					fmt.Println("    图片为URL传输方式，但指针为空，无法获取URL")
+				} else if acsAlarmInfo.DwPicDataLen == 1 {
+					fmt.Println("    检测到DwPicDataLen=1，这表示有图片但需要通过其他方式获取")
+					fmt.Println("    根据用户要求，不使用查询事件日志的方式获取图片")
 				}
 			} else {
 				if acsAlarmInfo.DwPicDataLen == 0 {
-					fmt.Println("    不包含图片数据 (数据长度为0)")
+					fmt.Println("    不包含图片数据 (DwPicDataLen=0)")
 				} else {
 					fmt.Println("    图片数据指针为空")
 				}
