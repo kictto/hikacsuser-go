@@ -1,5 +1,7 @@
 package acsapi
 
+// #include <stdlib.h>
+// #include <string.h>
 import "C"
 import (
 	"fmt"
