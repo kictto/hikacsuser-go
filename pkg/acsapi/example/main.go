@@ -16,7 +16,7 @@ func alarmCallback(alarmType int, alarmInfo interface{}) error {
 
 func main() {
 	// 创建门禁系统客户端
-	client, err := acsapi.NewACSClient()
+	client, err := acsapi.NewACSClient("./sdklog")
 	if err != nil {
 		fmt.Printf("创建客户端失败: %v\n", err)
 		return

@@ -37,7 +37,7 @@ func NewACSClient(logPath string) (*ACSClient, error) {
 	}
 
 	// 设置日志
-	if !client.hcnetsdk.NET_DVR_SetLogToFile(3, "./sdklog", false) {
+	if !client.hcnetsdk.NET_DVR_SetLogToFile(3, logPath, false) {
 		return nil, fmt.Errorf("设置日志失败: %d", client.hcnetsdk.NET_DVR_GetLastError())
 	}
 
