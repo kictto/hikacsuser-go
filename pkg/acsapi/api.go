@@ -23,7 +23,7 @@ type ACSClient struct {
 }
 
 // NewACSClient 创建新的门禁系统客户端
-func NewACSClient() (*ACSClient, error) {
+func NewACSClient(logPath string) (*ACSClient, error) {
 	// 获取SDK实例
 	instance, err := sdk.GetSDKInstance()
 	if err != nil {
