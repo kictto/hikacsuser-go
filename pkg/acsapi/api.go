@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/clockworkchen/hikacsuser-go/internal/models"
 	"github.com/clockworkchen/hikacsuser-go/internal/sdk"
+	"time"
 )
 
 // ACSClient 门禁系统客户端
@@ -133,59 +134,166 @@ func (c *ACSClient) Cleanup() {
 }
 
 // GetACSConfig 获取门禁参数
-func (c *ACSClient) GetACSConfig() error {
+func (c *ACSClient) GetACSConfig() (ResponseData, error) {
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return ResponseData{}, fmt.Errorf("未登录设备")
 	}
-	return c.acsManage.AcsCfg(c.lUserID)
+
+	// 调用内部方法
+	err := c.acsManage.AcsCfg(c.lUserID)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 获取响应数据
+	responseData, err := c.acsManage.SendISAPIRequest(c.lUserID, "GET /ISAPI/AccessControl/AcsCfg?format=json", nil)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 解析响应数据
+	response, err := ParseResponseData(responseData)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	return response, nil
 }
 
 // GetACSStatus 获取门禁状态
-func (c *ACSClient) GetACSStatus() error {
+func (c *ACSClient) GetACSStatus() (ResponseData, error) {
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return ResponseData{}, fmt.Errorf("未登录设备")
 	}
-	return c.acsManage.GetAcsStatus(c.lUserID)
+
+	// 调用内部方法
+	err := c.acsManage.GetAcsStatus(c.lUserID)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 获取响应数据
+	responseData, err := c.acsManage.SendISAPIRequest(c.lUserID, "GET /ISAPI/AccessControl/AcsStatus?format=json", nil)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 解析响应数据
+	response, err := ParseResponseData(responseData)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	return response, nil
 }
 
 // RemoteControlGate 远程控门
-func (c *ACSClient) RemoteControlGate() error {
+func (c *ACSClient) RemoteControlGate() (ResponseData, error) {
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return ResponseData{}, fmt.Errorf("未登录设备")
 	}
-	return c.acsManage.RemoteControlGate(c.lUserID)
+
+	// 调用内部方法
+	err := c.acsManage.RemoteControlGate(c.lUserID)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 获取响应数据
+	responseData, err := c.acsManage.SendISAPIRequest(c.lUserID, "PUT /ISAPI/AccessControl/RemoteControl/door/1?format=json", nil)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 解析响应数据
+	response, err := ParseResponseData(responseData)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	return response, nil
 }
 
 // AddUser 添加单个用户
-func (c *ACSClient) AddUser(employeeNo string) error {
+func (c *ACSClient) AddUser(employeeNo string) (ResponseData, error) {
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return ResponseData{}, fmt.Errorf("未登录设备")
 	}
-	return c.userManage.AddUserInfo(c.lUserID, employeeNo)
+
+	// 调用内部方法
+	err := c.userManage.AddUserInfo(c.lUserID, employeeNo)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 构建用户信息JSON
+	jsonData := fmt.Sprintf(`{
+		"UserInfo": {
+			"employeeNo": "%s"
+		}
+	}`, employeeNo)
+
+	// 获取响应数据
+	responseData, err := c.userManage.SendISAPIRequest(c.lUserID, "POST /ISAPI/AccessControl/UserInfo/Record?format=json", []byte(jsonData))
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 解析响应数据
+	response, err := ParseResponseData(responseData)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	return response, nil
 }
 
 // AddUsers 批量添加用户
-func (c *ACSClient) AddUsers(employeeNos []string) []error {
+func (c *ACSClient) AddUsers(employeeNos []string) ([]ResponseData, []error) {
 	if c.lUserID < 0 {
-		return []error{fmt.Errorf("未登录设备")}
+		return nil, []error{fmt.Errorf("未登录设备")}
 	}
 
 	errors := make([]error, 0)
+	responses := make([]ResponseData, 0)
+
 	for _, employeeNo := range employeeNos {
-		err := c.userManage.AddUserInfo(c.lUserID, employeeNo)
+		response, err := c.AddUser(employeeNo)
+		responses = append(responses, response)
+
 		if err != nil {
 			errors = append(errors, fmt.Errorf("添加用户 %s 失败: %v", employeeNo, err))
 		}
 	}
-	return errors
+
+	return responses, errors
 }
 
 // SearchUser 查询用户信息
-func (c *ACSClient) SearchUser() error {
+func (c *ACSClient) SearchUser() (ResponseData, error) {
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return ResponseData{}, fmt.Errorf("未登录设备")
 	}
-	return c.userManage.SearchUserInfo(c.lUserID)
+
+	// 调用内部方法
+	err := c.userManage.SearchUserInfo(c.lUserID)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 获取响应数据
+	responseData, err := c.userManage.SendISAPIRequest(c.lUserID, "POST /ISAPI/AccessControl/UserInfo/Search?format=json", nil)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 解析响应数据
+	response, err := ParseResponseData(responseData)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	return response, nil
 }
 
 // DeleteUser 方法已移至user.go
@@ -193,170 +301,442 @@ func (c *ACSClient) SearchUser() error {
 // DeleteAllUsers 方法已移至user.go
 
 // AddCard 添加单个卡片
-func (c *ACSClient) AddCard(employeeNo, cardNo string) error {
+func (c *ACSClient) AddCard(employeeNo, cardNo string) (ResponseData, error) {
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return ResponseData{}, fmt.Errorf("未登录设备")
 	}
-	return c.cardManage.AddCardInfo(c.lUserID, employeeNo, cardNo)
+
+	// 调用内部方法
+	err := c.cardManage.AddCardInfo(c.lUserID, employeeNo, cardNo)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 构建卡片信息JSON
+	jsonData := fmt.Sprintf(`{
+		"CardInfo": {
+			"employeeNo": "%s",
+			"cardNo": "%s",
+			"cardType": "normalCard"
+		}
+	}`, employeeNo, cardNo)
+
+	// 获取响应数据
+	responseData, err := c.cardManage.SendISAPIRequest(c.lUserID, "POST /ISAPI/AccessControl/CardInfo/Record?format=json", []byte(jsonData))
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 解析响应数据
+	response, err := ParseResponseData(responseData)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	return response, nil
 }
 
 // AddCards 批量添加卡片
-func (c *ACSClient) AddCards(employeeNos, cardNos []string) []error {
+func (c *ACSClient) AddCards(employeeNos, cardNos []string) ([]ResponseData, []error) {
 	if c.lUserID < 0 {
-		return []error{fmt.Errorf("未登录设备")}
+		return nil, []error{fmt.Errorf("未登录设备")}
 	}
 
 	if len(employeeNos) != len(cardNos) {
-		return []error{fmt.Errorf("员工号和卡号数量不匹配")}
+		return nil, []error{fmt.Errorf("员工号和卡号数量不匹配")}
 	}
 
 	errors := make([]error, 0)
+	responses := make([]ResponseData, 0)
+
 	for i, employeeNo := range employeeNos {
-		err := c.cardManage.AddCardInfo(c.lUserID, employeeNo, cardNos[i])
+		response, err := c.AddCard(employeeNo, cardNos[i])
+		responses = append(responses, response)
+
 		if err != nil {
 			errors = append(errors, fmt.Errorf("添加卡片 %s 失败: %v", cardNos[i], err))
 		}
 	}
 
-	return errors
+	return responses, errors
 }
 
 // SearchCard 查询卡片信息
-func (c *ACSClient) SearchCard(employeeNo string) error {
+func (c *ACSClient) SearchCard(employeeNo string) (ResponseData, error) {
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return ResponseData{}, fmt.Errorf("未登录设备")
 	}
-	return c.cardManage.SearchCardInfo(c.lUserID, employeeNo)
+
+	// 调用内部方法
+	err := c.cardManage.SearchCardInfo(c.lUserID, employeeNo)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 构建查询JSON
+	uuid := fmt.Sprintf("%d", time.Now().UnixNano())
+	jsonData := fmt.Sprintf(`{
+		"CardInfoSearchCond": {
+			"searchID": "%s",
+			"searchResultPosition": 0,
+			"maxResults": 30,
+			"EmployeeNoList": [
+				{
+					"employeeNo": "%s"
+				}
+			]
+		}
+	}`, uuid, employeeNo)
+
+	// 获取响应数据
+	responseData, err := c.cardManage.SendISAPIRequest(c.lUserID, "POST /ISAPI/AccessControl/CardInfo/Search?format=json", []byte(jsonData))
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 解析响应数据
+	response, err := ParseResponseData(responseData)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	return response, nil
 }
 
 // DeleteCard 删除卡片
-func (c *ACSClient) DeleteCard(cardNo string) error {
+func (c *ACSClient) DeleteCard(cardNo string) (ResponseData, error) {
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return ResponseData{}, fmt.Errorf("未登录设备")
 	}
-	return c.cardManage.DeleteCardInfo(c.lUserID, cardNo)
+
+	// 调用内部方法
+	err := c.cardManage.DeleteCardInfo(c.lUserID, cardNo)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 构建删除JSON
+	jsonData := fmt.Sprintf(`{
+		"CardInfoDelCond": {
+			"CardNoList": [
+				{
+					"cardNo": "%s"
+				}
+			]
+		}
+	}`, cardNo)
+
+	// 获取响应数据
+	responseData, err := c.cardManage.SendISAPIRequest(c.lUserID, "PUT /ISAPI/AccessControl/CardInfo/Delete?format=json", []byte(jsonData))
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 解析响应数据
+	response, err := ParseResponseData(responseData)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	return response, nil
 }
 
 // DeleteCards 批量删除卡片
-func (c *ACSClient) DeleteCards(cardNos []string) []error {
+func (c *ACSClient) DeleteCards(cardNos []string) ([]ResponseData, []error) {
 	if c.lUserID < 0 {
-		return []error{fmt.Errorf("未登录设备")}
+		return nil, []error{fmt.Errorf("未登录设备")}
 	}
 
 	errors := make([]error, 0)
+	responses := make([]ResponseData, 0)
+
 	for _, cardNo := range cardNos {
-		err := c.cardManage.DeleteCardInfo(c.lUserID, cardNo)
+		response, err := c.DeleteCard(cardNo)
+		responses = append(responses, response)
+
 		if err != nil {
 			errors = append(errors, fmt.Errorf("删除卡片 %s 失败: %v", cardNo, err))
 		}
 	}
 
-	return errors
+	return responses, errors
 }
 
 // AddFaceByBinary 通过二进制方式添加人脸
-func (c *ACSClient) AddFaceByBinary(employeeNo string) error {
+func (c *ACSClient) AddFaceByBinary(employeeNo string) (ResponseData, error) {
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return ResponseData{}, fmt.Errorf("未登录设备")
 	}
-	return c.faceManage.AddFaceByBinary(c.lUserID, employeeNo)
+
+	// 调用内部方法
+	err := c.faceManage.AddFaceByBinary(c.lUserID, employeeNo)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 获取响应数据
+	responseData, err := c.faceManage.SendISAPIRequest(c.lUserID, "PUT /ISAPI/Intelligent/FDLib/FDSetUp?format=json", nil)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 解析响应数据
+	response, err := ParseResponseData(responseData)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	return response, nil
 }
 
 // AddFacesByBinary 通过二进制方式批量添加人脸
-func (c *ACSClient) AddFacesByBinary(employeeNos []string) []error {
+func (c *ACSClient) AddFacesByBinary(employeeNos []string) ([]ResponseData, []error) {
 	if c.lUserID < 0 {
-		return []error{fmt.Errorf("未登录设备")}
+		return nil, []error{fmt.Errorf("未登录设备")}
 	}
 
 	errors := make([]error, 0)
+	responses := make([]ResponseData, 0)
+
 	for _, employeeNo := range employeeNos {
-		err := c.faceManage.AddFaceByBinary(c.lUserID, employeeNo)
+		response, err := c.AddFaceByBinary(employeeNo)
+		responses = append(responses, response)
+
 		if err != nil {
 			errors = append(errors, fmt.Errorf("添加人脸 %s 失败: %v", employeeNo, err))
 		}
 	}
 
-	return errors
+	return responses, errors
 }
 
 // AddFaceByUrl 通过URL方式添加人脸
-func (c *ACSClient) AddFaceByUrl(employeeNo string) error {
+func (c *ACSClient) AddFaceByUrl(employeeNo string) (ResponseData, error) {
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return ResponseData{}, fmt.Errorf("未登录设备")
 	}
-	return c.faceManage.AddFaceByUrl(c.lUserID, employeeNo)
+
+	// 调用内部方法
+	err := c.faceManage.AddFaceByUrl(c.lUserID, employeeNo)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 获取响应数据
+	responseData, err := c.faceManage.SendISAPIRequest(c.lUserID, "PUT /ISAPI/Intelligent/FDLib/FaceDataRecord?format=json", nil)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 解析响应数据
+	response, err := ParseResponseData(responseData)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	return response, nil
 }
 
 // AddFacesByUrl 通过URL方式批量添加人脸
-func (c *ACSClient) AddFacesByUrl(employeeNos []string) []error {
+func (c *ACSClient) AddFacesByUrl(employeeNos []string) ([]ResponseData, []error) {
 	if c.lUserID < 0 {
-		return []error{fmt.Errorf("未登录设备")}
+		return nil, []error{fmt.Errorf("未登录设备")}
 	}
 
 	errors := make([]error, 0)
+	responses := make([]ResponseData, 0)
+
 	for _, employeeNo := range employeeNos {
-		err := c.faceManage.AddFaceByUrl(c.lUserID, employeeNo)
+		response, err := c.AddFaceByUrl(employeeNo)
+		responses = append(responses, response)
+
 		if err != nil {
 			errors = append(errors, fmt.Errorf("添加人脸 %s 失败: %v", employeeNo, err))
 		}
 	}
 
-	return errors
+	return responses, errors
 }
 
 // SearchFace 查询人脸信息
-func (c *ACSClient) SearchFace(employeeNo string) error {
+func (c *ACSClient) SearchFace(employeeNo string) (ResponseData, error) {
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return ResponseData{}, fmt.Errorf("未登录设备")
 	}
-	return c.faceManage.SearchFaceInfo(c.lUserID, employeeNo)
+
+	// 调用内部方法
+	err := c.faceManage.SearchFaceInfo(c.lUserID, employeeNo)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 构建查询JSON
+	jsonData := fmt.Sprintf(`{
+		"FaceInfoSearchCond": {
+			"searchResultPosition": 0,
+			"maxResults": 30,
+			"faceLibType": "blackFD",
+			"FDID": "1",
+			"employeeNo": "%s"
+		}
+	}`, employeeNo)
+
+	// 获取响应数据
+	responseData, err := c.faceManage.SendISAPIRequest(c.lUserID, "POST /ISAPI/Intelligent/FDLib/FDSearch?format=json", []byte(jsonData))
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 解析响应数据
+	response, err := ParseResponseData(responseData)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	return response, nil
 }
 
 // DeleteFace 删除人脸
-func (c *ACSClient) DeleteFace(employeeNo string) error {
+func (c *ACSClient) DeleteFace(employeeNo string) (ResponseData, error) {
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return ResponseData{}, fmt.Errorf("未登录设备")
 	}
-	return c.faceManage.DeleteFaceInfo(c.lUserID, employeeNo)
+
+	// 调用内部方法
+	err := c.faceManage.DeleteFaceInfo(c.lUserID, employeeNo)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 构建删除JSON
+	jsonData := fmt.Sprintf(`{
+		"FaceInfoDelCond": {
+			"FDID": "1",
+			"faceLibType": "blackFD",
+			"employeeNo": "%s"
+		}
+	}`, employeeNo)
+
+	// 获取响应数据
+	responseData, err := c.faceManage.SendISAPIRequest(c.lUserID, "PUT /ISAPI/Intelligent/FDLib/FDDelete?format=json", []byte(jsonData))
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 解析响应数据
+	response, err := ParseResponseData(responseData)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	return response, nil
 }
 
 // DeleteFaces 批量删除人脸
-func (c *ACSClient) DeleteFaces(employeeNos []string) []error {
+func (c *ACSClient) DeleteFaces(employeeNos []string) ([]ResponseData, []error) {
 	if c.lUserID < 0 {
-		return []error{fmt.Errorf("未登录设备")}
+		return nil, []error{fmt.Errorf("未登录设备")}
 	}
 
 	errors := make([]error, 0)
+	responses := make([]ResponseData, 0)
+
 	for _, employeeNo := range employeeNos {
-		err := c.faceManage.DeleteFaceInfo(c.lUserID, employeeNo)
+		response, err := c.DeleteFace(employeeNo)
+		responses = append(responses, response)
+
 		if err != nil {
 			errors = append(errors, fmt.Errorf("删除人脸 %s 失败: %v", employeeNo, err))
 		}
 	}
 
-	return errors
+	return responses, errors
 }
 
 // CaptureFace 采集人脸
-func (c *ACSClient) CaptureFace() error {
+func (c *ACSClient) CaptureFace() (ResponseData, error) {
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return ResponseData{}, fmt.Errorf("未登录设备")
 	}
-	return c.faceManage.CaptureFaceInfo(c.lUserID)
+
+	// 调用内部方法
+	err := c.faceManage.CaptureFaceInfo(c.lUserID)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 获取响应数据
+	responseData, err := c.faceManage.SendISAPIRequest(c.lUserID, "PUT /ISAPI/Intelligent/FDLib/FDSearch?format=json", nil)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 解析响应数据
+	response, err := ParseResponseData(responseData)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	return response, nil
 }
 
 // SearchAllEvents 查询所有门禁历史事件
-func (c *ACSClient) SearchAllEvents() error {
+func (c *ACSClient) SearchAllEvents() (ResponseData, error) {
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return ResponseData{}, fmt.Errorf("未登录设备")
 	}
-	return c.eventSearch.SearchAllEvent(c.lUserID)
+
+	// 调用内部方法
+	err := c.eventSearch.SearchAllEvent(c.lUserID)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 获取响应数据
+	responseData, err := c.eventSearch.SendISAPIRequest(c.lUserID, "POST /ISAPI/AccessControl/AcsEvent/Search?format=json", nil)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 解析响应数据
+	response, err := ParseResponseData(responseData)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	return response, nil
 }
 
 // SetCardTemplate 设置卡片模板
-func (c *ACSClient) SetCardTemplate(templateNo int) error {
+func (c *ACSClient) SetCardTemplate(templateNo int) (ResponseData, error) {
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return ResponseData{}, fmt.Errorf("未登录设备")
 	}
-	return c.userManage.SetCardTemplate(c.lUserID, templateNo)
+
+	// 调用内部方法
+	err := c.userManage.SetCardTemplate(c.lUserID, templateNo)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 构建模板JSON
+	jsonData := fmt.Sprintf(`{
+		"CardTemplate": {
+			"templateNo": %d
+		}
+	}`, templateNo)
+
+	// 获取响应数据
+	responseData, err := c.userManage.SendISAPIRequest(c.lUserID, "PUT /ISAPI/AccessControl/CardTemplate/Parameter?format=json", []byte(jsonData))
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	// 解析响应数据
+	response, err := ParseResponseData(responseData)
+	if err != nil {
+		return ResponseData{}, err
+	}
+
+	return response, nil
 }
