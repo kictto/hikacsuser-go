@@ -15,9 +15,10 @@ var (
 )
 
 // AddUserWithInfo 使用UserInfo结构体添加用户
-func (c *ACSClient) AddUserWithInfo(userInfo UserInfo) error {
+func (c *ACSClient) AddUserWithInfo(userInfo UserInfo) (ResponseData, error) {
+	var response ResponseData
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return response, fmt.Errorf("未登录设备")
 	}
 
 	// 设置默认值
@@ -107,14 +108,22 @@ func (c *ACSClient) AddUserWithInfo(userInfo UserInfo) error {
 		userInfo.LocalUIRight,
 		userInfo.UserVerifyMode)
 
-	return c.userManage.AddUserInfoWithJSON(c.lUserID, jsonData)
+	respData, err := c.userManage.AddUserInfoWithJSON(c.lUserID, jsonData)
+	if err != nil {
+		return response, err
+	}
+
+	// 解析响应数据
+	response, err = ParseResponseData(respData)
+	return response, err
 }
 
 // DeleteUserImpl 删除单个用户的实现
 // 这个方法替代了原来交互式的DeleteUser方法
-func (c *ACSClient) DeleteUserImpl(employeeNo string) error {
+func (c *ACSClient) DeleteUserImpl(employeeNo string) (ResponseData, error) {
+	var response ResponseData
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return response, fmt.Errorf("未登录设备")
 	}
 
 	// 构建删除用户的JSON请求
@@ -133,20 +142,23 @@ func (c *ACSClient) DeleteUserImpl(employeeNo string) error {
 	url := "PUT /ISAPI/AccessControl/UserInfo/Delete?format=json"
 
 	// 发送ISAPI请求
-	response, err := c.userManage.SendISAPIRequest(c.lUserID, url, []byte(jsonData))
+	respData, err := c.userManage.SendISAPIRequest(c.lUserID, url, []byte(jsonData))
 	if err != nil {
-		return fmt.Errorf("删除用户失败: %v", err)
+		return response, fmt.Errorf("删除用户失败: %v", err)
 	}
 
-	fmt.Printf("删除用户信息成功, 响应: %s\n", string(response))
-	return nil
+	// 解析响应数据
+	response, err = ParseResponseData(respData)
+	fmt.Printf("删除用户信息成功, 响应: %s\n", string(respData))
+	return response, err
 }
 
 // DeleteAllUsersImpl 删除所有用户的实现
 // 这个方法替代了原来交互式的DeleteAllUsers方法
-func (c *ACSClient) DeleteAllUsersImpl() error {
+func (c *ACSClient) DeleteAllUsersImpl() (ResponseData, error) {
+	var response ResponseData
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return response, fmt.Errorf("未登录设备")
 	}
 
 	// 构建删除所有用户的JSON请求
@@ -160,49 +172,54 @@ func (c *ACSClient) DeleteAllUsersImpl() error {
 	url := "PUT /ISAPI/AccessControl/UserInfo/Delete?format=json"
 
 	// 发送ISAPI请求
-	response, err := c.userManage.SendISAPIRequest(c.lUserID, url, []byte(jsonData))
+	respData, err := c.userManage.SendISAPIRequest(c.lUserID, url, []byte(jsonData))
 	if err != nil {
-		return fmt.Errorf("删除所有用户失败: %v", err)
+		return response, fmt.Errorf("删除所有用户失败: %v", err)
 	}
 
-	fmt.Printf("删除所有用户信息成功, 响应: %s\n", string(response))
-	return nil
+	// 解析响应数据
+	response, err = ParseResponseData(respData)
+	fmt.Printf("删除所有用户信息成功, 响应: %s\n", string(respData))
+	return response, err
 }
 
 // DeleteUser 删除单个用户
 // 这个方法覆盖了api.go中的同名方法
-func (c *ACSClient) DeleteUser(employeeNo string) error {
+func (c *ACSClient) DeleteUser(employeeNo string) (ResponseData, error) {
 	return c.DeleteUserImpl(employeeNo)
 }
 
 // DeleteAllUsers 删除所有用户
 // 这个方法覆盖了api.go中的同名方法
-func (c *ACSClient) DeleteAllUsers() error {
+func (c *ACSClient) DeleteAllUsers() (ResponseData, error) {
 	return c.DeleteAllUsersImpl()
 }
 
 // DeleteUsers 批量删除用户
-func (c *ACSClient) DeleteUsers(employeeNos []string) []error {
+func (c *ACSClient) DeleteUsers(employeeNos []string) ([]ResponseData, []error) {
 	if c.lUserID < 0 {
-		return []error{fmt.Errorf("未登录设备")}
+		return nil, []error{fmt.Errorf("未登录设备")}
 	}
 
+	responses := make([]ResponseData, 0)
 	errors := make([]error, 0)
 	for _, employeeNo := range employeeNos {
-		err := c.DeleteUserImpl(employeeNo)
+		resp, err := c.DeleteUserImpl(employeeNo)
+		responses = append(responses, resp)
 		if err != nil {
 			errors = append(errors, fmt.Errorf("删除用户 %s 失败: %v", employeeNo, err))
 		}
 	}
 
-	return errors
+	return responses, errors
 }
 
 // SetupUser 设置用户信息（支持新增和修改）
 // 使用PUT /ISAPI/AccessControl/UserInfo/SetUp?format=json接口
-func (c *ACSClient) SetupUser(userInfo UserInfo) error {
+func (c *ACSClient) SetupUser(userInfo UserInfo) (ResponseData, error) {
+	var response ResponseData
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return response, fmt.Errorf("未登录设备")
 	}
 
 	// 设置默认值
@@ -296,28 +313,32 @@ func (c *ACSClient) SetupUser(userInfo UserInfo) error {
 	url := "PUT /ISAPI/AccessControl/UserInfo/SetUp?format=json"
 
 	// 发送ISAPI请求
-	response, err := c.userManage.SendISAPIRequest(c.lUserID, url, []byte(jsonData))
+	respData, err := c.userManage.SendISAPIRequest(c.lUserID, url, []byte(jsonData))
 	if err != nil {
-		return fmt.Errorf("设置用户信息失败: %v", err)
+		return response, fmt.Errorf("设置用户信息失败: %v", err)
 	}
 
-	fmt.Printf("设置用户信息成功, 响应: %s\n", string(response))
-	return nil
+	// 解析响应数据
+	response, err = ParseResponseData(respData)
+	fmt.Printf("设置用户信息成功, 响应: %s\n", string(respData))
+	return response, err
 }
 
 // SetupUsers 批量设置用户信息（支持新增和修改）
-func (c *ACSClient) SetupUsers(userInfos []UserInfo) []error {
+func (c *ACSClient) SetupUsers(userInfos []UserInfo) ([]ResponseData, []error) {
 	if c.lUserID < 0 {
-		return []error{fmt.Errorf("未登录设备")}
+		return nil, []error{fmt.Errorf("未登录设备")}
 	}
 
+	responses := make([]ResponseData, 0)
 	errors := make([]error, 0)
 	for _, userInfo := range userInfos {
-		err := c.SetupUser(userInfo)
+		resp, err := c.SetupUser(userInfo)
+		responses = append(responses, resp)
 		if err != nil {
 			errors = append(errors, fmt.Errorf("设置用户 %s 信息失败: %v", userInfo.EmployeeNo, err))
 		}
 	}
 
-	return errors
+	return responses, errors
 }

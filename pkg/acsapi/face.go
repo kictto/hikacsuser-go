@@ -5,9 +5,10 @@ import (
 )
 
 // AddFaceByBinaryWithInfo 使用FaceInfo结构体通过二进制方式添加人脸
-func (c *ACSClient) AddFaceByBinaryWithInfo(faceInfo FaceInfo) error {
+func (c *ACSClient) AddFaceByBinaryWithInfo(faceInfo FaceInfo) (ResponseData, error) {
+	var response ResponseData
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return response, fmt.Errorf("未登录设备")
 	}
 
 	// 设置默认值
@@ -20,7 +21,7 @@ func (c *ACSClient) AddFaceByBinaryWithInfo(faceInfo FaceInfo) error {
 
 	// 检查是否提供了人脸图片文件路径或二进制数据
 	if faceInfo.FaceFile == "" && len(faceInfo.FaceData) == 0 {
-		return fmt.Errorf("未提供人脸图片文件路径或二进制数据")
+		return response, fmt.Errorf("未提供人脸图片文件路径或二进制数据")
 	}
 
 	// 构建人脸信息JSON
@@ -31,35 +32,50 @@ func (c *ACSClient) AddFaceByBinaryWithInfo(faceInfo FaceInfo) error {
 	}`, faceInfo.FaceLibType, faceInfo.FDID, faceInfo.EmployeeNo)
 
 	// 如果提供了二进制数据，则直接使用
+	var respData []byte
+	var err error
 	if len(faceInfo.FaceData) > 0 {
-		return c.faceManage.AddFaceByBinaryWithJSONAndData(c.lUserID, jsonData, faceInfo.FaceData)
+		respData, err = c.faceManage.AddFaceByBinaryWithJSONAndData(c.lUserID, jsonData, faceInfo.FaceData)
+		if err != nil {
+			return response, err
+		}
+	} else {
+		// 否则使用文件路径
+		respData, err = c.faceManage.AddFaceByBinaryWithJSON(c.lUserID, jsonData, faceInfo.FaceFile)
+		if err != nil {
+			return response, err
+		}
 	}
 
-	// 否则使用文件路径
-	return c.faceManage.AddFaceByBinaryWithJSON(c.lUserID, jsonData, faceInfo.FaceFile)
+	// 解析响应数据
+	response, err = ParseResponseData(respData)
+	return response, err
 }
 
 // AddFacesByBinaryWithInfo 批量添加人脸，使用FaceInfo结构体数组
-func (c *ACSClient) AddFacesByBinaryWithInfo(faceInfos []FaceInfo) []error {
+func (c *ACSClient) AddFacesByBinaryWithInfo(faceInfos []FaceInfo) ([]ResponseData, []error) {
 	if c.lUserID < 0 {
-		return []error{fmt.Errorf("未登录设备")}
+		return nil, []error{fmt.Errorf("未登录设备")}
 	}
 
+	responses := make([]ResponseData, 0)
 	errors := make([]error, 0)
 	for _, faceInfo := range faceInfos {
-		err := c.AddFaceByBinaryWithInfo(faceInfo)
+		resp, err := c.AddFaceByBinaryWithInfo(faceInfo)
+		responses = append(responses, resp)
 		if err != nil {
 			errors = append(errors, fmt.Errorf("添加人脸 %s 失败: %v", faceInfo.EmployeeNo, err))
 		}
 	}
 
-	return errors
+	return responses, errors
 }
 
 // AddFaceByUrlWithInfo 使用FaceInfo结构体通过URL方式添加人脸
-func (c *ACSClient) AddFaceByUrlWithInfo(faceInfo FaceInfo) error {
+func (c *ACSClient) AddFaceByUrlWithInfo(faceInfo FaceInfo) (ResponseData, error) {
+	var response ResponseData
 	if c.lUserID < 0 {
-		return fmt.Errorf("未登录设备")
+		return response, fmt.Errorf("未登录设备")
 	}
 
 	// 设置默认值
@@ -72,7 +88,7 @@ func (c *ACSClient) AddFaceByUrlWithInfo(faceInfo FaceInfo) error {
 
 	// 检查是否提供了人脸图片URL
 	if faceInfo.FaceURL == "" {
-		return fmt.Errorf("未提供人脸图片URL")
+		return response, fmt.Errorf("未提供人脸图片URL")
 	}
 
 	// 构建人脸信息JSON
@@ -83,22 +99,31 @@ func (c *ACSClient) AddFaceByUrlWithInfo(faceInfo FaceInfo) error {
 		"faceURL": "%s"
 	}`, faceInfo.FaceLibType, faceInfo.FDID, faceInfo.EmployeeNo, faceInfo.FaceURL)
 
-	return c.faceManage.AddFaceByUrlWithJSON(c.lUserID, jsonData)
+	respData, err := c.faceManage.AddFaceByUrlWithJSON(c.lUserID, jsonData)
+	if err != nil {
+		return response, err
+	}
+
+	// 解析响应数据
+	response, err = ParseResponseData(respData)
+	return response, err
 }
 
 // AddFacesByUrlWithInfo 批量添加人脸，使用FaceInfo结构体数组
-func (c *ACSClient) AddFacesByUrlWithInfo(faceInfos []FaceInfo) []error {
+func (c *ACSClient) AddFacesByUrlWithInfo(faceInfos []FaceInfo) ([]ResponseData, []error) {
 	if c.lUserID < 0 {
-		return []error{fmt.Errorf("未登录设备")}
+		return nil, []error{fmt.Errorf("未登录设备")}
 	}
 
+	responses := make([]ResponseData, 0)
 	errors := make([]error, 0)
 	for _, faceInfo := range faceInfos {
-		err := c.AddFaceByUrlWithInfo(faceInfo)
+		resp, err := c.AddFaceByUrlWithInfo(faceInfo)
+		responses = append(responses, resp)
 		if err != nil {
 			errors = append(errors, fmt.Errorf("添加人脸 %s 失败: %v", faceInfo.EmployeeNo, err))
 		}
 	}
 
-	return errors
+	return responses, errors
 }

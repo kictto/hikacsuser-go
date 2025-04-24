@@ -40,9 +40,9 @@ func (es *EventSearch) SendISAPIRequest(lUserID int, url string, requestData []b
 }
 
 // AddUserInfoWithJSON 使用完整的JSON数据添加用户信息
-func (um *UserManage) AddUserInfoWithJSON(lUserID int, jsonData string) error {
+func (um *UserManage) AddUserInfoWithJSON(lUserID int, jsonData string) ([]byte, error) {
 	if lUserID < 0 {
-		return fmt.Errorf("无效的用户ID")
+		return nil, fmt.Errorf("无效的用户ID")
 	}
 
 	// URL
@@ -51,11 +51,11 @@ func (um *UserManage) AddUserInfoWithJSON(lUserID int, jsonData string) error {
 	// 发送ISAPI请求
 	response, err := um.sendISAPIRequest(lUserID, url, []byte(jsonData))
 	if err != nil {
-		return err
+		return response, err
 	}
 
 	fmt.Printf("添加用户成功, 响应: %s\n", string(response))
-	return nil
+	return response, nil
 }
 
 // DeleteUserInfoWithJSON 使用完整的JSON数据删除用户信息
@@ -78,9 +78,9 @@ func (um *UserManage) DeleteUserInfoWithJSON(lUserID int, jsonData string) error
 }
 
 // AddCardInfoWithJSON 使用完整的JSON数据添加卡片信息
-func (cm *CardManage) AddCardInfoWithJSON(lUserID int, jsonData string) error {
+func (cm *CardManage) AddCardInfoWithJSON(lUserID int, jsonData string) ([]byte, error) {
 	if lUserID < 0 {
-		return fmt.Errorf("无效的用户ID")
+		return nil, fmt.Errorf("无效的用户ID")
 	}
 
 	// URL
@@ -89,23 +89,23 @@ func (cm *CardManage) AddCardInfoWithJSON(lUserID int, jsonData string) error {
 	// 发送ISAPI请求
 	response, err := cm.sendISAPIRequest(lUserID, url, []byte(jsonData))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	fmt.Printf("添加卡片成功, 响应: %s\n", string(response))
-	return nil
+	return response, nil
 }
 
 // AddFaceByBinaryWithJSON 使用完整的JSON数据通过二进制方式添加人脸
-func (fm *FaceManage) AddFaceByBinaryWithJSON(lUserID int, jsonData string, faceFilePath string) error {
+func (fm *FaceManage) AddFaceByBinaryWithJSON(lUserID int, jsonData string, faceFilePath string) ([]byte, error) {
 	if lUserID < 0 {
-		return fmt.Errorf("无效的用户ID")
+		return nil, fmt.Errorf("无效的用户ID")
 	}
 
 	// 加载人脸图片
 	faceData, err := utils.LoadPicture(faceFilePath)
 	if err != nil {
-		return fmt.Errorf("加载人脸图片失败: %v", err)
+		return nil, fmt.Errorf("加载人脸图片失败: %v", err)
 	}
 
 	// 构建请求URL
@@ -119,7 +119,7 @@ func (fm *FaceManage) AddFaceByBinaryWithJSON(lUserID int, jsonData string, face
 	// 调用远程配置
 	lHandle := fm.SDK.NET_DVR_StartRemoteConfig(lUserID, NET_DVR_FACE_DATA_RECORD, inputParamPtr, uint32(len(strInBuffer)), 0, nil)
 	if lHandle < 0 {
-		return fmt.Errorf("NET_DVR_StartRemoteConfig失败，错误码: %d", fm.SDK.NET_DVR_GetLastError())
+		return nil, fmt.Errorf("NET_DVR_StartRemoteConfig失败，错误码: %d", fm.SDK.NET_DVR_GetLastError())
 	}
 	defer fm.SDK.NET_DVR_StopRemoteConfig(lHandle)
 
@@ -164,7 +164,7 @@ func (fm *FaceManage) AddFaceByBinaryWithJSON(lUserID int, jsonData string, face
 
 	// 处理配置结果
 	if result == -1 {
-		return fmt.Errorf("下发人脸失败: 发送ISAPI请求失败，错误码: %d", fm.SDK.NET_DVR_GetLastError())
+		return nil, fmt.Errorf("下发人脸失败: 发送ISAPI请求失败，错误码: %d", fm.SDK.NET_DVR_GetLastError())
 	} else if result == sdk.NET_SDK_CONFIG_STATUS_NEED_WAIT {
 		// 配置等待，等待一段时间后再次尝试获取结果
 		time.Sleep(100 * time.Millisecond)
@@ -184,29 +184,29 @@ func (fm *FaceManage) AddFaceByBinaryWithJSON(lUserID int, jsonData string, face
 
 	// 解析返回结果
 	if result == sdk.NET_SDK_CONFIG_STATUS_FAILED {
-		return fmt.Errorf("下发人脸失败: 配置失败")
+		return nil, fmt.Errorf("下发人脸失败: 配置失败")
 	} else if result == sdk.NET_SDK_CONFIG_STATUS_EXCEPTION {
-		return fmt.Errorf("下发人脸失败: 配置异常")
+		return nil, fmt.Errorf("下发人脸失败: 配置异常")
 	} else if result == sdk.NET_SDK_CONFIG_STATUS_SUCCESS || result == sdk.NET_SDK_CONFIG_STATUS_FINISH {
 		// 提取响应数据
 		response := make([]byte, resultLen)
 		copy(response, outputBuf[:resultLen])
 		fmt.Printf("添加人脸信息成功, 响应: %s\n", string(response))
-		return nil
+		return response, nil
 	}
 
-	return fmt.Errorf("下发人脸失败: 未知状态码 %d", result)
+	return nil, fmt.Errorf("下发人脸失败: 未知状态码 %d", result)
 }
 
 // AddFaceByBinaryWithJSONAndData 使用完整的JSON数据和二进制图片数据通过二进制方式添加人脸
-func (fm *FaceManage) AddFaceByBinaryWithJSONAndData(lUserID int, jsonData string, faceData []byte) error {
+func (fm *FaceManage) AddFaceByBinaryWithJSONAndData(lUserID int, jsonData string, faceData []byte) ([]byte, error) {
 	if lUserID < 0 {
-		return fmt.Errorf("无效的用户ID")
+		return nil, fmt.Errorf("无效的用户ID")
 	}
 
 	// 检查图片数据
 	if len(faceData) == 0 {
-		return fmt.Errorf("人脸图片数据为空")
+		return nil, fmt.Errorf("人脸图片数据为空")
 	}
 
 	// 构建请求URL
@@ -220,7 +220,7 @@ func (fm *FaceManage) AddFaceByBinaryWithJSONAndData(lUserID int, jsonData strin
 	// 调用远程配置
 	lHandle := fm.SDK.NET_DVR_StartRemoteConfig(lUserID, NET_DVR_FACE_DATA_RECORD, inputParamPtr, uint32(len(strInBuffer)), 0, nil)
 	if lHandle < 0 {
-		return fmt.Errorf("NET_DVR_StartRemoteConfig失败，错误码: %d", fm.SDK.NET_DVR_GetLastError())
+		return nil, fmt.Errorf("NET_DVR_StartRemoteConfig失败，错误码: %d", fm.SDK.NET_DVR_GetLastError())
 	}
 	defer fm.SDK.NET_DVR_StopRemoteConfig(lHandle)
 
@@ -265,7 +265,7 @@ func (fm *FaceManage) AddFaceByBinaryWithJSONAndData(lUserID int, jsonData strin
 
 	// 处理配置结果
 	if result == -1 {
-		return fmt.Errorf("下发人脸失败: 发送ISAPI请求失败，错误码: %d", fm.SDK.NET_DVR_GetLastError())
+		return nil, fmt.Errorf("下发人脸失败: 发送ISAPI请求失败，错误码: %d", fm.SDK.NET_DVR_GetLastError())
 	} else if result == sdk.NET_SDK_CONFIG_STATUS_NEED_WAIT {
 		// 配置等待，等待一段时间后再次尝试获取结果
 		time.Sleep(100 * time.Millisecond)
@@ -285,24 +285,24 @@ func (fm *FaceManage) AddFaceByBinaryWithJSONAndData(lUserID int, jsonData strin
 
 	// 解析返回结果
 	if result == sdk.NET_SDK_CONFIG_STATUS_FAILED {
-		return fmt.Errorf("下发人脸失败: 配置失败")
+		return nil, fmt.Errorf("下发人脸失败: 配置失败")
 	} else if result == sdk.NET_SDK_CONFIG_STATUS_EXCEPTION {
-		return fmt.Errorf("下发人脸失败: 配置异常")
+		return nil, fmt.Errorf("下发人脸失败: 配置异常")
 	} else if result == sdk.NET_SDK_CONFIG_STATUS_SUCCESS || result == sdk.NET_SDK_CONFIG_STATUS_FINISH {
 		// 提取响应数据
 		response := make([]byte, resultLen)
 		copy(response, outputBuf[:resultLen])
 		fmt.Printf("添加人脸信息成功, 响应: %s\n", string(response))
-		return nil
+		return response, nil
 	}
 
-	return fmt.Errorf("下发人脸失败: 未知状态码 %d", result)
+	return nil, fmt.Errorf("下发人脸失败: 未知状态码 %d", result)
 }
 
 // AddFaceByUrlWithJSON 使用完整的JSON数据通过URL方式添加人脸
-func (fm *FaceManage) AddFaceByUrlWithJSON(lUserID int, jsonData string) error {
+func (fm *FaceManage) AddFaceByUrlWithJSON(lUserID int, jsonData string) ([]byte, error) {
 	if lUserID < 0 {
-		return fmt.Errorf("无效的用户ID")
+		return nil, fmt.Errorf("无效的用户ID")
 	}
 
 	// URL
@@ -311,9 +311,9 @@ func (fm *FaceManage) AddFaceByUrlWithJSON(lUserID int, jsonData string) error {
 	// 发送ISAPI请求
 	response, err := fm.sendISAPIRequest(lUserID, url, []byte(jsonData))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	fmt.Printf("添加人脸信息成功, 响应: %s\n", string(response))
-	return nil
+	return response, nil
 }
