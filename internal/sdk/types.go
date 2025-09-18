@@ -1,9 +1,13 @@
 package sdk
 
+import "unsafe"
+
 // 报警命令常量 (请根据SDK文档核对具体值)
 const (
-	COMM_ALARM_V30 = 0x4000 // V30报警信息
-	COMM_ALARM_ACS = 0x5002 // 门禁主机报警信息
+	COMM_ALARM_V30          = 0x4000 // V30报警信息
+	COMM_ALARM_ACS          = 0x5002 // 门禁主机报警信息
+	COMM_ID_INFO_ALARM      = 0x5200 // 门禁身份证刷卡信息
+	COMM_PASSNUM_INFO_ALARM = 0x5201 // 门禁通行人数信息
 	// 添加其他需要的报警命令常量...
 )
 
@@ -98,7 +102,7 @@ const (
 	MAX_ALARMOUT_V30 = 4
 	MAX_CHANNUM_V30  = 16
 	MAX_DISKNUM_V30  = 16
-	MAX_NAMELEN      = 32
+	MAX_NAMELEN      = 16
 	ACS_CARD_NO_LEN  = 32
 )
 
@@ -216,4 +220,77 @@ type NET_DVR_ACS_EVENT_INFO_EXTEND_V20 struct {
 	ByTravelCode           byte          // 行程码
 	ByVaccineStatus        byte          // 疫苗状态
 	ByRes                  [948]byte     // 保留
+}
+
+// NET_DVR_TIME_V30
+type NET_DVR_TIME_V30 struct {
+	DwYear   uint32
+	DwMonth  uint32
+	DwDay    uint32
+	DwHour   uint32
+	DwMinute uint32
+	DwSecond uint32
+}
+
+// NET_DVR_ID_CARD_INFO
+type NET_DVR_ID_CARD_INFO struct {
+	ByName  [128]byte
+	ByIDNum [32]byte
+	ByRes   [16]byte
+}
+
+// NET_DVR_ID_CARD_INFO_EXTEND
+type NET_DVR_ID_CARD_INFO_EXTEND struct {
+	ByRemoteCheck          byte
+	ByThermometryUnit      byte
+	ByIsAbnomalTemperature byte
+	ByRes2                 byte
+	FCurrTemperature       float32
+	StruRegionCoordinates  NET_VCA_POINT
+	DwQRCodeInfoLen        uint32
+	DwVisibleLightDataLen  uint32
+	DwThermalDataLen       uint32
+	PQRCodeInfo            unsafe.Pointer
+	PVisibleLightData      unsafe.Pointer
+	PThermalData           unsafe.Pointer
+	WXCoordinate           uint16
+	WYCoordinate           uint16
+	WWidth                 uint16
+	WHeight                uint16
+	ByHealthCode           byte
+	ByNADCode              byte
+	ByTravelCode           byte
+	ByVaccineStatus        byte
+	ByRes                  [1012]byte
+}
+
+// NET_DVR_ID_CARD_INFO_ALARM
+type NET_DVR_ID_CARD_INFO_ALARM struct {
+	DwSize                  uint32
+	StruIDCardCfg           NET_DVR_ID_CARD_INFO
+	DwMajor                 uint32
+	DwMinor                 uint32
+	StruSwipeTime           NET_DVR_TIME_V30
+	ByNetUser               [MAX_NAMELEN]byte
+	StruRemoteHostAddr      NET_DVR_IPADDR
+	DwCardReaderNo          uint32
+	DwDoorNo                uint32
+	DwPicDataLen            uint32
+	PPicData                unsafe.Pointer
+	ByCardType              byte
+	ByDeviceNo              byte
+	ByMask                  byte
+	ByRes2                  byte
+	DwFingerPrintDataLen    uint32
+	PFingerPrintData        unsafe.Pointer
+	DwCapturePicDataLen     uint32
+	PCapturePicData         unsafe.Pointer
+	DwCertificatePicDataLen uint32
+	PCertificatePicData     unsafe.Pointer
+	ByCardReaderKind        byte
+	ByRes3                  [2]byte
+	ByIDCardInfoExtend      byte
+	PIDCardInfoExtend       unsafe.Pointer
+	DwSerialNo              uint32
+	ByRes                   [168]byte
 }

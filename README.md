@@ -33,7 +33,7 @@ hikacsuser-go/
 使用Go Modules安装本项目：
 
 ```bash
-go get github.com/clockworkchen/hikacsuser-go
+go get github.com/kictto/hikacsuser-go
 ```
 
 安装后，您需要确保动态链接库能被正确加载。当使用go get或go mod tidy安装本项目时，动态链接库会一同被下载，但不会自动被添加到系统的搜索路径中。**这是由于Go不处理非Go代码的依赖关系**。
@@ -72,7 +72,7 @@ Go中引用方式：
 
 ```go
 // 直接使用pkg包导出的API
-import "github.com/clockworkchen/hikacsuser-go/pkg/acsapi"
+import "github.com/kictto/hikacsuser-go/pkg/acsapi"
 
 func main() {
     // 创建客户端(会自动查找和设置库路径)
@@ -94,7 +94,7 @@ func main() {
 **或者**使用底层SDK：
 
 ```go
-import "github.com/clockworkchen/hikacsuser-go/internal/sdk"
+import "github.com/kictto/hikacsuser-go/internal/sdk"
 
 func main() {
     // 获取SDK实例(会自动查找和设置库路径)

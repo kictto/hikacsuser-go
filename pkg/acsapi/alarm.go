@@ -17,7 +17,7 @@ import (
 )
 
 // AlarmCallback 布控回调函数类型定义
-type AlarmCallback func(alarmType int, alarmInfo interface{}) error
+type AlarmCallback func(lCommand int, alarmInfo interface{}) error
 
 // AlarmSession 布控会话信息
 type AlarmSession struct {
@@ -205,7 +205,6 @@ func sdkMsgCallback(lCommand int, pAlarmer *sdk.NET_DVR_ALARMER, pAlarmInfo unsa
 
 	// 根据报警类型处理报警信息
 	var exportAlarmInfo interface{}
-	var alarmType int
 
 	switch lCommand {
 	case sdk.COMM_ALARM_ACS: // 门禁主机报警
@@ -519,7 +518,7 @@ func sdkMsgCallback(lCommand int, pAlarmer *sdk.NET_DVR_ALARMER, pAlarmInfo unsa
 			}
 
 			exportAlarmInfo = exportAcsAlarmInfo
-			alarmType = int(acsAlarmInfo.DwMajor)
+			//alarmType = int(acsAlarmInfo.DwMajor)
 		}
 	case sdk.COMM_ALARM_V30: // 通用报警
 		if pAlarmInfo != nil && dwBufLen >= uint32(unsafe.Sizeof(sdk.NET_DVR_ALARMINFO_V30{})) {
@@ -543,16 +542,15 @@ func sdkMsgCallback(lCommand int, pAlarmer *sdk.NET_DVR_ALARMER, pAlarmInfo unsa
 			copy(exportAlarmInfoV30.DiskNumber, alarmInfoV30.ByDiskNumber[:])
 
 			exportAlarmInfo = exportAlarmInfoV30
-			alarmType = int(alarmInfoV30.DwAlarmType)
+			//alarmType = int(alarmInfoV30.DwAlarmType)
 		}
 	default:
 		// 其他类型报警，直接使用命令码作为报警类型
-		alarmType = lCommand
 	}
 
 	// 调用用户定义的回调函数
 	if session.Callback != nil && exportAlarmInfo != nil {
-		err := session.Callback(alarmType, exportAlarmInfo)
+		err := session.Callback(lCommand, exportAlarmInfo)
 		if err != nil {
 			fmt.Printf("报警回调: 用户回调函数处理失败: %v\n", err)
 			return false
